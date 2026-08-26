@@ -1,0 +1,113 @@
+// Prisma schema for the NHL Player Attribute Voting site.
+//
+// Provider note: this runs on SQLite for local dev because no Postgres
+// instance or Docker daemon was available in the build environment. The
+// schema intentionally avoids any SQLite-only types, so moving to Postgres
+// later is just: change `provider` below to "postgresql", point
+// DATABASE_URL at a real database, and re-run `prisma migrate dev`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Position {
+  C
+  LW
+  RW
+  D
+  G
+}
+
+enum PlayerStatus {
+  ACTIVE
+  RETIRED
+  INJURED
+}
+
+enum ReportType {
+  DATA_ISSUE
+  VOTE_SPIKE
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model Team {
+  id            String   @id // NHL abbreviation, e.g. "TOR"
+  name          String
+  city          String
+  conference    String
+  division      String
+  primaryColor  String
+  secondaryColor String
+  logoLight     String
+  logoDark      String
+  players       Player[]
+  updatedAt     DateTime @updatedAt
+}
+
+model Player {
+  id            String        @id @default(cuid())
+  nhlId         Int           @unique
+  firstName     String
+  lastName      String
+  position      Position
+  status        PlayerStatus  @default(ACTIVE)
+  teamId        String?
+  team          Team?         @relation(fields: [teamId], references: [id])
+  headshotUrl   String?
+  heightInches  Int?
+  weightPounds  Int?
+  birthDate     String?
+  birthCountry  String?
+  votes         AttributeVote[]
+  reports       Report[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([position])
+  @@index([status])
+  @@index([lastName])
+}
+
+// One row per individual vote. We need full records (not just running
+// totals) to support the rolling 24h cooldown per voter+attribute, spike
+// detection, and admin reporting.
+model AttributeVote {
+  id          String   @id @default(cuid())
+  playerId    String
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  attribute   String   // e.g. "mobility", "shooting" ... see src/lib/attributes.ts
+  value       Int      // +1 or -1
+  voterToken  String   // cookie/localStorage token — used for the rolling cooldown
+  voterHash   String   // sha256(ip + user-agent + salt) — abuse guard only
+  createdAt   DateTime @default(now())
+
+  @@index([playerId, attribute])
+  @@index([voterToken, playerId, attribute])
+  @@index([voterHash, createdAt])
+  @@index([createdAt])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  type        ReportType
+  status      ReportStatus @default(OPEN)
+  playerId    String?
+  player      Player?      @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  message     String
+  metaJson    String?      // extra context, e.g. spike counts or reporter note
+  createdAt   DateTime     @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status])
+  @@index([type])
+}

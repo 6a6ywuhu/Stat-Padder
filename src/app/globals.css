@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Neutral grayscale shell — light mode (spec section 9: base UI is
+     black & white; color only enters via team-context accents). */
+  --color-bg: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f4f4f5;
+  --color-fg: #18181b;
+  --color-fg-muted: #52525b;
+  --color-fg-faint: #a1a1aa;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+  --color-card: #ffffff;
+
+  /* Semantic vote colors — always meaningful, never decorative. */
+  --color-positive: #16a34a;
+  --color-positive-light: #a3e635; /* yellow-green start of the magnitude gradient */
+  --color-positive-fg: #ffffff;
+  --color-negative: #dc2626;
+  --color-negative-light: #fb923c; /* orange start of the magnitude gradient */
+  --color-negative-fg: #ffffff;
+  --color-empty: #d4d4d8;
+
+  --color-ring: #18181b;
+
+  /* Team accent — overridden per-page/component with inline style vars
+     when a team context is present (spec section 9). Defaults to neutral
+     so components never accidentally render "colorful" without context. */
+  --team-primary: #52525b;
+  --team-secondary: #27272a;
+  --team-primary-fg: #ffffff;
+
+  --font-display: var(--font-barlow-condensed), "Arial Narrow", sans-serif;
+  --font-body: var(--font-barlow), "Helvetica Neue", Arial, sans-serif;
+}
+
+.dark {
+  --color-bg: #09090b;
+  --color-bg-elevated: #18181b;
+  --color-bg-subtle: #18181b;
+  --color-fg: #fafafa;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-faint: #71717a;
+  --color-border: #27272a;
+  --color-border-strong: #3f3f46;
+  --color-card: #18181b;
+
+  --color-positive: #22c55e;
+  --color-positive-light: #bef264;
+  --color-positive-fg: #052e16;
+  --color-negative: #f87171;
+  --color-negative-light: #fdba74;
+  --color-negative-fg: #450a0a;
+  --color-empty: #3f3f46;
+
+  --color-ring: #fafafa;
+
+  --team-primary: #a1a1aa;
+  --team-secondary: #71717a;
+  --team-primary-fg: #09090b;
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-subtle: var(--color-bg-subtle);
+  --color-fg: var(--color-fg);
+  --color-fg-muted: var(--color-fg-muted);
+  --color-fg-faint: var(--color-fg-faint);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-card: var(--color-card);
+  --color-positive: var(--color-positive);
+  --color-positive-light: var(--color-positive-light);
+  --color-positive-fg: var(--color-positive-fg);
+  --color-negative: var(--color-negative);
+  --color-negative-light: var(--color-negative-light);
+  --color-negative-fg: var(--color-negative-fg);
+  --color-empty: var(--color-empty);
+  --color-ring: var(--color-ring);
+  --color-team-primary: var(--team-primary);
+  --color-team-secondary: var(--team-secondary);
+  --color-team-primary-fg: var(--team-primary-fg);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible focus ring on every interactive element, in both themes. */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
