@@ -1,8 +1,34 @@
 import type { NextConfig } from "next";
 
+// These pages read searchParams, so Next renders them dynamically and
+// sends `Cache-Control: no-store` — meaning every visit is a fresh
+// serverless-function invocation. Their output is identical for every
+// visitor (no per-user content), so tell Netlify's CDN to cache the
+// rendered response at the edge per-URL for a short window and serve
+// stale while it refreshes. `Netlify-CDN-Cache-Control` is read only by
+// Netlify's CDN and stripped before the response reaches the browser, so
+// it doesn't affect Next's own no-store to the client.
+const EDGE_CACHE = "public, durable, s-maxage=120, stale-while-revalidate=600";
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "assets.nhle.com" }],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path(rankings|team-rankings|player-stats)",
+        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
+      },
+      {
+        source: "/teams/:abbrev",
+        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
+      },
+      {
+        source: "/players/:id/history",
+        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
+      },
+    ];
   },
 };
 
