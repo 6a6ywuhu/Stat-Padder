@@ -56,7 +56,7 @@ export type GroupSelector =
  * other. Used by both the rankings page and the player profile page so a
  * given set of positions always means the same comparison group everywhere.
  */
-async function scoreGroupUncached(
+export async function scoreGroupUncached(
   selector: GroupSelector,
   statuses: PlayerStatus[] = ["ACTIVE", "INJURED"],
   opts: { since?: Date } = {}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isValidVotableAttribute } from "@/lib/attributes";
@@ -41,6 +42,11 @@ export async function POST(req: NextRequest) {
     voterHash: voterHash(req),
     userId: session?.user?.id,
   });
+
+  // Rebuild the static rankings snapshot so the new vote shows up on the
+  // next load rather than waiting out the 60s revalidate window. ("max" is
+  // Next 16's "invalidate now" — the old single-arg behaviour.)
+  revalidateTag("rankings", "max");
 
   const res = NextResponse.json({ ok: true });
 

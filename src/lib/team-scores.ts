@@ -71,7 +71,7 @@ const mean = (nums: number[]): number | null =>
  * Only ACTIVE/INJURED players count, matching the rest of the site. Pass
  * `since` to score off votes cast in that window only (week/month views).
  */
-async function computeTeamRankings(opts: { since?: Date } = {}): Promise<TeamRanking[]> {
+export async function computeTeamRankings(opts: { since?: Date } = {}): Promise<TeamRanking[]> {
   const [teams, players] = await Promise.all([
     prisma.team.findMany(),
     prisma.player.findMany({
