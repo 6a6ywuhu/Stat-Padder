@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getScoredGroup } from "@/lib/group-scores";
+import { getScoredPlayer } from "@/lib/group-scores";
 import {
   attributesForPosition,
   ATTRIBUTE_CATEGORIES,
@@ -63,13 +63,13 @@ export default async function PlayerProfilePage({
   // narrows the bars back down to this player's own position.
   const crossPosition = !isGoalie && cross !== "0";
 
-  const group = await getScoredGroup(
+  const scored = await getScoredPlayer(
+    player.id,
     isGoalie
       ? { kind: "goalie" }
       : { kind: "skater", positions: crossPosition ? SKATER_POSITIONS : [position as SkaterPosition] },
     player.status === "RETIRED" ? ["RETIRED"] : ["ACTIVE", "INJURED"]
   );
-  const scored = group.find((g) => g.player.id === player.id);
 
   const attrs = attributesForPosition(position);
 

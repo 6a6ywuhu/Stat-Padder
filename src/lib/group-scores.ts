@@ -96,6 +96,30 @@ export const getScoredGroup: typeof scoreGroupUncached = unstable_cache(
   { revalidate: 90, tags: ["rankings"] }
 );
 
+/**
+ * One player's scored result, relative to a comparison group. The profile
+ * page needs a single player's bars, but those bars are scaled against the
+ * whole group, so the group still has to be scored internally — we just
+ * don't cache the whole array. The cross-position skater pool serialises
+ * to ~2 MB, over `unstable_cache`'s per-entry limit, so `getScoredGroup`
+ * for that selector silently fails to cache and recomputes on every view.
+ * Caching the single ScoredPlayer instead (a few KB) actually sticks.
+ */
+async function scorePlayerUncached(
+  playerId: string,
+  selector: GroupSelector,
+  statuses: PlayerStatus[] = ["ACTIVE", "INJURED"]
+): Promise<ScoredPlayer<PlayerWithTeam> | null> {
+  const group = await scoreGroupUncached(selector, statuses);
+  return group.find((g) => g.player.id === playerId) ?? null;
+}
+
+export const getScoredPlayer: typeof scorePlayerUncached = unstable_cache(
+  scorePlayerUncached,
+  ["scored-player"],
+  { revalidate: 90, tags: ["rankings"] }
+);
+
 const VALID_SKATER_POSITIONS: SkaterPosition[] = ["C", "LW", "RW", "D"];
 
 /**
