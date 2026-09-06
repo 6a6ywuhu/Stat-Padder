@@ -1,0 +1,22 @@
+# Netlify build config. The Next.js runtime plugin is installed
+# automatically for Next sites; it doesn't need to be listed here.
+#
+# Runtime env vars are NOT set here — add them in the Netlify UI
+# (Site configuration -> Environment variables):
+#   DATABASE_URL          pooled Postgres connection
+#   DIRECT_URL            direct Postgres connection (used by migrate deploy)
+#   AUTH_SECRET           openssl rand -base64 33
+#   AUTH_TRUST_HOST       "true" — required: Auth.js v5 won't trust the
+#                         forwarded host behind Netlify's proxy without it,
+#                         which breaks login/callback URLs
+#   VOTER_HASH_SALT, ADMIN_PASSWORD, ADMIN_SESSION_SECRET
+#   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET   (optional)
+
+[build]
+  # `prisma generate` already runs via the package.json "postinstall"
+  # script on `npm install`. This applies pending migrations to the
+  # production database, then builds.
+  command = "npx prisma migrate deploy && npx next build"
+
+[build.environment]
+  NODE_VERSION = "22"
