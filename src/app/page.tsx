@@ -189,7 +189,7 @@ function PlayerRow({ rank, player }: { rank: number; player: WeeklyPlayer }) {
   return (
     <li>
       <Link
-        href={`/players/${player.id}`}
+        href={`/players/${player.id}`} prefetch={false}
         className="group flex items-center gap-2.5 rounded-lg px-1.5 py-2 transition-colors hover:bg-[var(--color-accent)]/10 sm:gap-3 sm:px-2 sm:py-2.5"
       >
         <Rank n={rank} />
@@ -218,7 +218,7 @@ function TeamRow({ rank, team }: { rank: number; team: WeeklyTeam }) {
   return (
     <li>
       <Link
-        href={`/teams/${team.id}`}
+        href={`/teams/${team.id}`} prefetch={false}
         className="flex items-center gap-2.5 rounded-lg px-1.5 py-2 transition-colors hover:bg-[var(--color-accent)]/10 sm:gap-3 sm:px-2 sm:py-2.5"
       >
         <Rank n={rank} />

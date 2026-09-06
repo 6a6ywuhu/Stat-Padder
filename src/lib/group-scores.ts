@@ -1,10 +1,50 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { getVoteMapsForPlayers } from "./votes";
 import { computeGroupScores, ScoredPlayer } from "./scoring";
 import { Position, SKATER_POSITIONS, SkaterPosition } from "./attributes";
-import type { Player, PlayerStatus, Team } from "@prisma/client";
+import type { PlayerStatus } from "@prisma/client";
 
-export type PlayerWithTeam = Player & { team: Team | null };
+/** Only the player/team fields the rankings + profile pages actually read.
+ *  Kept deliberately narrow: the full row for a cross-position pool is
+ *  ~700 players and blew past unstable_cache's 2 MB per-entry limit. */
+const PLAYER_FIELDS = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  nhlId: true,
+  position: true,
+  status: true,
+  teamId: true,
+  headshotUrl: true,
+  team: {
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      primaryColor: true,
+      secondaryColor: true,
+    },
+  },
+} as const;
+
+export type PlayerWithTeam = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  nhlId: number;
+  position: string;
+  status: PlayerStatus;
+  teamId: string | null;
+  headshotUrl: string | null;
+  team: {
+    id: string;
+    name: string;
+    city: string;
+    primaryColor: string;
+    secondaryColor: string;
+  } | null;
+};
 
 export type GroupSelector =
   | { kind: "skater"; positions: SkaterPosition[] }
@@ -16,7 +56,7 @@ export type GroupSelector =
  * other. Used by both the rankings page and the player profile page so a
  * given set of positions always means the same comparison group everywhere.
  */
-export async function getScoredGroup(
+async function scoreGroupUncached(
   selector: GroupSelector,
   statuses: PlayerStatus[] = ["ACTIVE", "INJURED"],
   opts: { since?: Date } = {}
@@ -26,7 +66,7 @@ export async function getScoredGroup(
 
   const players = await prisma.player.findMany({
     where: { position: { in: positions }, status: { in: statuses } },
-    include: { team: true },
+    select: PLAYER_FIELDS,
   });
 
   const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), opts.since);
@@ -39,6 +79,19 @@ export async function getScoredGroup(
 
   return computeGroupScores(entries);
 }
+
+/**
+ * Cached wrapper. The rankings and team pages read `searchParams`, so Next
+ * renders them per-request rather than from the CDN — but the DB read +
+ * scoring here is identical for everyone in a given window, so memoise it
+ * for 90s instead of re-running the whole pool score on every hit. Keyed
+ * on the arguments (selector / statuses / `since`).
+ */
+export const getScoredGroup: typeof scoreGroupUncached = unstable_cache(
+  scoreGroupUncached,
+  ["scored-group"],
+  { revalidate: 90 }
+);
 
 const VALID_SKATER_POSITIONS: SkaterPosition[] = ["C", "LW", "RW", "D"];
 

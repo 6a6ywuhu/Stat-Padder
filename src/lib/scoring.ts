@@ -75,18 +75,21 @@ export type OverallBar = {
 };
 
 export function directionAndPct(value: number, maxPositive: number, mostNegative: number): { direction: Direction; pct: number } {
+  // Round pct to 0.1 — a bar is ~200px wide so finer precision is invisible,
+  // and full-precision floats (17 chars each, thousands of them) bloat the
+  // serialised group-score payload.
+  const r = (n: number) => Math.round(n * 10) / 10;
   if (value > 0) {
-    return { direction: "positive", pct: maxPositive > 0 ? (value / maxPositive) * 100 : 0 };
+    return { direction: "positive", pct: maxPositive > 0 ? r((value / maxPositive) * 100) : 0 };
   }
   if (value < 0) {
-    return { direction: "negative", pct: mostNegative < 0 ? (value / mostNegative) * 100 : 0 };
+    return { direction: "negative", pct: mostNegative < 0 ? r((value / mostNegative) * 100) : 0 };
   }
   return { direction: "zero", pct: 0 };
 }
 
 export type ScoredPlayer<T> = {
   player: T;
-  voteMap: PlayerVoteMap;
   position: Position;
   attributeBars: Record<string, AttributeBar>;
   /** Potential/Leadership — universal, never part of Overall, never shown in the rankings hover preview. */
@@ -214,7 +217,7 @@ export function computeGroupScores<T extends { id: string }>(
     const overallValue = overallByPlayer.get(entry.player.id) ?? 0;
     const overall: OverallBar = {
       ...directionAndPct(overallValue, maxPositiveOverall, mostNegativeOverall),
-      value: overallValue,
+      value: Math.round(overallValue * 100) / 100,
     };
 
     const categoryBars: Partial<Record<AttributeCategory, OverallBar>> = {};
@@ -224,7 +227,7 @@ export function computeGroupScores<T extends { id: string }>(
         const value = perCategory[cat.key] ?? 0;
         categoryBars[cat.key] = {
           ...directionAndPct(value, maxPositiveByCategory[cat.key] ?? 0, mostNegativeByCategory[cat.key] ?? 0),
-          value,
+          value: Math.round(value * 100) / 100,
         };
       }
     }
@@ -232,12 +235,15 @@ export function computeGroupScores<T extends { id: string }>(
     const boosterValue = boosterByPlayer.get(entry.player.id) ?? 0;
     const boosterBar: OverallBar = {
       ...directionAndPct(boosterValue, maxPositiveBooster, mostNegativeBooster),
-      value: boosterValue,
+      value: Math.round(boosterValue * 100) / 100,
     };
 
     return {
+      // voteMap is intentionally not carried through — it's raw input the
+      // bars are derived from, no consumer reads it, and for a
+      // cross-position pool (~700 players) it's what pushed the scored
+      // result past unstable_cache's 2 MB per-entry limit.
       player: entry.player,
-      voteMap: entry.voteMap,
       position: entry.position,
       attributeBars,
       boosterBars,

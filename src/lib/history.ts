@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { attributesForPosition, isBoosterAttribute, Position } from "./attributes";
 
@@ -32,7 +33,7 @@ function isoWeekKey(date: Date): string {
  * boosters never factor in, same rule as the live Overall score). One
  * point per bucket that actually saw a vote; no gap-filling between them.
  */
-export async function getPlayerHistory(
+async function computePlayerHistory(
   playerId: string,
   position: Position,
   series: HistorySeries,
@@ -69,6 +70,14 @@ export async function getPlayerHistory(
     .map(([bucket, value]) => ({ bucket, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => (a.bucket < b.bucket ? -1 : a.bucket > b.bucket ? 1 : 0));
 }
+
+/** Cached wrapper — the history page reads `searchParams`, so it renders
+ *  per-request; the chart data only shifts as votes come in. */
+export const getPlayerHistory: typeof computePlayerHistory = unstable_cache(
+  computePlayerHistory,
+  ["player-history"],
+  { revalidate: 120 }
+);
 
 export function isValidHistorySeries(series: string, position: Position): boolean {
   if (series === "overall") return true;

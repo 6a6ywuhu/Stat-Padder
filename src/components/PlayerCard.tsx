@@ -88,6 +88,7 @@ export function PlayerCard({
   return (
     <Link
       href={`/players/${id}`}
+      prefetch={false}
       className="group @container flex flex-col rounded-md border-2 border-[var(--color-border)] bg-[var(--color-card)] p-3 transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 sm:p-4"
     >
       <div className="flex items-center gap-2.5 @[25rem]:gap-4 sm:gap-3">

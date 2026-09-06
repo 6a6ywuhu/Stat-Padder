@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { getVoteMapsForPlayers } from "./votes";
 import { categoryScore, directionAndPct, netScore, Direction, PlayerVoteMap } from "./scoring";
@@ -70,7 +71,7 @@ const mean = (nums: number[]): number | null =>
  * Only ACTIVE/INJURED players count, matching the rest of the site. Pass
  * `since` to score off votes cast in that window only (week/month views).
  */
-export async function getTeamRankings(opts: { since?: Date } = {}): Promise<TeamRanking[]> {
+async function computeTeamRankings(opts: { since?: Date } = {}): Promise<TeamRanking[]> {
   const [teams, players] = await Promise.all([
     prisma.team.findMany(),
     prisma.player.findMany({
@@ -145,6 +146,17 @@ export async function getTeamRankings(opts: { since?: Date } = {}): Promise<Team
     };
   });
 }
+
+/**
+ * Cached wrapper — same reasoning as getScoredGroup. Scoring every team
+ * from the whole player pool is identical for all visitors in a given
+ * window; memoise it for 90s rather than per-request.
+ */
+export const getTeamRankings: typeof computeTeamRankings = unstable_cache(
+  computeTeamRankings,
+  ["team-rankings"],
+  { revalidate: 90 }
+);
 
 /**
  * Direction + fill percentage for one score column, scaled to that column's

@@ -65,7 +65,7 @@ function ContributorList({ title, items }: { title: string; items: Contributor[]
             <li key={c.id} className="flex items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0 truncate text-[var(--color-fg)]">
                 <span className="mr-1 tabular-nums text-[var(--color-fg-faint)]">{i + 1}.</span>
-                <Link href={`/players/${c.id}`} className="hover:underline">
+                <Link href={`/players/${c.id}`} prefetch={false} className="hover:underline">
                   {c.name}
                 </Link>
                 <span className="ml-1 text-xs text-[var(--color-fg-faint)]">{c.position}</span>
@@ -201,6 +201,7 @@ function FragmentRow({
         <td className="px-2 py-2 align-middle sm:px-3 sm:py-3">
           <Link
             href={`/teams/${row.teamId}`}
+            prefetch={false}
             onClick={(e) => e.stopPropagation()}
             className="group flex items-center gap-2 sm:gap-2.5"
           >

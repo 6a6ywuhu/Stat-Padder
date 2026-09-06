@@ -50,6 +50,7 @@ export function TeamRankRow({
     <li className="border-b border-[var(--color-border)] last:border-b-0">
       <Link
         href={`/teams/${id}`}
+        prefetch={false}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={
