@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isValidVotableAttribute } from "@/lib/attributes";
 import { voterTokenCookieOptions, readOrCreateVoterToken, voterHash } from "@/lib/voter";
-import { recordVoteAndCheckSpike } from "@/lib/votes";
-import { auth } from "@/lib/auth";
+import { recordVote, checkVoteSpike } from "@/lib/votes";
+import type { Attribute, BoosterAttribute } from "@/lib/attributes";
 
 const bodySchema = z.object({
   playerId: z.string().min(1),
@@ -20,7 +20,10 @@ export async function POST(req: NextRequest) {
   }
   const { playerId, attribute, value } = parsed.data;
 
-  const player = await prisma.player.findUnique({ where: { id: playerId } });
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+    select: { position: true },
+  });
   if (!player) {
     return NextResponse.json({ error: "Player not found." }, { status: 404 });
   }
@@ -32,21 +35,26 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, isNew } = readOrCreateVoterToken(req);
-  const session = await auth();
 
-  await recordVoteAndCheckSpike({
+  // Only the write blocks the response.
+  await recordVote({
     playerId,
-    attribute,
+    attribute: attribute as Attribute | BoosterAttribute,
     value,
     voterToken: token,
     voterHash: voterHash(req),
-    userId: session?.user?.id,
   });
 
-  // Rebuild the static rankings snapshot so the new vote shows up on the
-  // next load rather than waiting out the 60s revalidate window. ("max" is
-  // Next 16's "invalidate now" — the old single-arg behaviour.)
-  revalidateTag("rankings", "max");
+  // Spike check + rankings-cache invalidation run after the response is
+  // flushed, so they never add to the voter's wait.
+  after(async () => {
+    try {
+      await checkVoteSpike(playerId, attribute as Attribute | BoosterAttribute);
+    } catch {
+      // best-effort abuse guard
+    }
+    revalidateTag("rankings", "max");
+  });
 
   const res = NextResponse.json({ ok: true });
 

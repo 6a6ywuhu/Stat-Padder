@@ -40,14 +40,15 @@ const SPIKE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const SPIKE_THRESHOLD = 40; // votes on one player/attribute within the window
 const SPIKE_REPORT_COOLDOWN_MS = 60 * 60 * 1000; // don't re-flag the same combo within an hour
 
-export async function recordVoteAndCheckSpike(params: {
+/** Just the write — the only thing that has to finish before the vote
+ *  response goes back. Votes are anonymous; nothing is linked to an
+ *  account (that lookup + write was the slowest part of the request). */
+export async function recordVote(params: {
   playerId: string;
   attribute: Attribute | BoosterAttribute;
   value: 1 | -1;
   voterToken: string;
   voterHash: string;
-  /** Set when the voter is signed in — never surfaced publicly, only in their own account's history. */
-  userId?: string;
 }) {
   await prisma.attributeVote.create({
     data: {
@@ -56,13 +57,20 @@ export async function recordVoteAndCheckSpike(params: {
       value: params.value,
       voterToken: params.voterToken,
       voterHash: params.voterHash,
-      userId: params.userId,
     },
   });
+}
 
+/** Abuse guard — runs after the response is flushed (via `after()`), so it
+ *  never adds to the voter's wait. Flags an admin report if one
+ *  player/attribute gets an abnormal burst of votes. */
+export async function checkVoteSpike(
+  playerId: string,
+  attribute: Attribute | BoosterAttribute
+) {
   const since = new Date(Date.now() - SPIKE_WINDOW_MS);
   const recentCount = await prisma.attributeVote.count({
-    where: { playerId: params.playerId, attribute: params.attribute, createdAt: { gte: since } },
+    where: { playerId, attribute, createdAt: { gte: since } },
   });
 
   if (recentCount < SPIKE_THRESHOLD) return;
@@ -71,10 +79,10 @@ export async function recordVoteAndCheckSpike(params: {
   const existingOpenReport = await prisma.report.findFirst({
     where: {
       type: "VOTE_SPIKE",
-      playerId: params.playerId,
+      playerId,
       status: "OPEN",
       createdAt: { gte: recentReportCutoff },
-      metaJson: { contains: `"attribute":"${params.attribute}"` },
+      metaJson: { contains: `"attribute":"${attribute}"` },
     },
   });
   if (existingOpenReport) return;
@@ -82,9 +90,9 @@ export async function recordVoteAndCheckSpike(params: {
   await prisma.report.create({
     data: {
       type: "VOTE_SPIKE",
-      playerId: params.playerId,
-      message: `Abnormal vote volume on "${params.attribute}": ${recentCount} votes in the last ${SPIKE_WINDOW_MS / 60000} minutes.`,
-      metaJson: JSON.stringify({ attribute: params.attribute, windowMinutes: SPIKE_WINDOW_MS / 60000, count: recentCount }),
+      playerId,
+      message: `Abnormal vote volume on "${attribute}": ${recentCount} votes in the last ${SPIKE_WINDOW_MS / 60000} minutes.`,
+      metaJson: JSON.stringify({ attribute, windowMinutes: SPIKE_WINDOW_MS / 60000, count: recentCount }),
     },
   });
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Minus, Plus } from "@phosphor-icons/react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
@@ -10,30 +9,40 @@ export function PlayerAttributeRow({
   playerId,
   attribute,
   label,
-  direction,
   pct,
   positiveVotes,
   negativeVotes,
-  net,
   color,
 }: {
   playerId: string;
   attribute: string;
   label: string;
-  direction: Direction;
+  /** Kept for API compatibility with callers; the bar direction is now
+   *  derived from the live optimistic count. */
+  direction?: Direction;
   pct: number;
   positiveVotes: number;
   negativeVotes: number;
-  net: number;
+  net?: number;
   color?: BarColor;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
+  // Seeded from the server render, then updated optimistically so a click
+  // lands instantly — the POST just persists it in the background.
+  const [pos, setPos] = useState(positiveVotes);
+  const [neg, setNeg] = useState(negativeVotes);
   const [error, setError] = useState<string | null>(null);
 
+  const net = pos - neg;
+  // Nudge the bar toward the new value without the group-scaled pct the
+  // server computes — it reconciles exactly on the next page load.
+  const shownDirection: Direction = net > 0 ? "positive" : net < 0 ? "negative" : "zero";
+  const shownPct =
+    net === 0 ? 0 : Math.max(4, Math.min(100, pct === 0 ? 12 : pct));
+
   async function vote(value: 1 | -1) {
-    setPending(true);
     setError(null);
+    if (value === 1) setPos((p) => p + 1);
+    else setNeg((n) => n + 1);
 
     try {
       const res = await fetch("/api/votes", {
@@ -44,13 +53,13 @@ export function PlayerAttributeRow({
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "Vote failed.");
-        return;
+        if (value === 1) setPos((p) => p - 1);
+        else setNeg((n) => n - 1);
       }
-      router.refresh();
     } catch {
       setError("Network error — vote not recorded.");
-    } finally {
-      setPending(false);
+      if (value === 1) setPos((p) => p - 1);
+      else setNeg((n) => n - 1);
     }
   }
 
@@ -67,18 +76,16 @@ export function PlayerAttributeRow({
             <button
               type="button"
               aria-label={`Downvote ${label}`}
-              disabled={pending}
               onClick={() => vote(-1)}
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-negative)]/50 text-[var(--color-negative)] transition-all hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-negative)]/50 text-[var(--color-negative)] transition-all hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10 active:scale-90"
             >
               <Minus size={11} weight="bold" />
             </button>
             <button
               type="button"
               aria-label={`Upvote ${label}`}
-              disabled={pending}
               onClick={() => vote(1)}
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-positive)]/50 text-[var(--color-positive)] transition-all hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-positive)]/50 text-[var(--color-positive)] transition-all hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10 active:scale-90"
             >
               <Plus size={11} weight="bold" />
             </button>
@@ -86,13 +93,13 @@ export function PlayerAttributeRow({
         </div>
       </div>
 
-      <NetBarTrack direction={direction} pct={pct} color={color} />
+      <NetBarTrack direction={shownDirection} pct={shownPct} color={color} />
 
       {error && <p className="mt-1 text-xs text-[var(--color-negative)]">{error}</p>}
 
       <div className="mt-0.5 flex justify-between text-[10px] text-[var(--color-fg-faint)]">
-        <span>{negativeVotes} down</span>
-        <span>{positiveVotes} up</span>
+        <span>{neg} down</span>
+        <span>{pos} up</span>
       </div>
     </div>
   );
