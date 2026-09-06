@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
 
@@ -44,29 +43,27 @@ export function PlayerAttributeRow({
   net?: number;
   color?: BarColor;
 }) {
-  const router = useRouter();
-
-  // Counts committed on the server when this row first mounted, plus the
-  // votes made here since. Displaying `max(currentServerCount, seed + local)`
-  // means an optimistic vote shows instantly and never snaps backward — a
-  // background refresh that hasn't caught up yet just loses the max().
-  const seedPos = useRef(positiveVotes).current;
-  const seedNeg = useRef(negativeVotes).current;
+  // Server counts at mount + votes made here since. The whole interaction
+  // is client-only: the count and bar move the instant you click, and the
+  // POST just persists it in the background. No `router.refresh()` — on
+  // this dynamic page a refresh re-runs auth() + the full cross-position
+  // pool score on cold Neon, and the reconciliation jank was eating the
+  // next click. The exact bar width reconciles on the next real page load.
+  const seedPos = positiveVotes;
+  const seedNeg = negativeVotes;
   const [optUp, setOptUp] = useState(0);
   const [optDown, setOptDown] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const inFlight = useRef(0);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const pos = Math.max(positiveVotes, seedPos + optUp);
-  const neg = Math.max(negativeVotes, seedNeg + optDown);
+  const pos = seedPos + optUp;
+  const neg = seedNeg + optDown;
   const net = pos - neg;
 
   const serverNet = positiveVotes - negativeVotes;
   const shownDirection: Direction = net > 0 ? "positive" : net < 0 ? "negative" : "zero";
   // pct is proportional to net within the comparison group, and one vote
   // doesn't move the group's max — so scaling the server pct by the net
-  // ratio tracks the real bar until a refresh reconciles it exactly.
+  // ratio tracks the real bar closely until a full reload reconciles it.
   const shownPct =
     net === 0
       ? 0
@@ -74,16 +71,8 @@ export function PlayerAttributeRow({
         ? Math.max(3, Math.min(100, pct * (net / serverNet)))
         : Math.max(3, Math.min(100, Math.abs(net) * 6));
 
-  function scheduleRefresh() {
-    if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    refreshTimer.current = setTimeout(() => {
-      if (inFlight.current === 0) router.refresh();
-    }, 800);
-  }
-
   async function vote(value: 1 | -1) {
     setError(null);
-    inFlight.current += 1;
     if (value === 1) setOptUp((u) => u + 1);
     else setOptDown((d) => d + 1);
 
@@ -103,9 +92,6 @@ export function PlayerAttributeRow({
       setError("Network error — vote not recorded.");
       if (value === 1) setOptUp((u) => Math.max(0, u - 1));
       else setOptDown((d) => Math.max(0, d - 1));
-    } finally {
-      inFlight.current -= 1;
-      scheduleRefresh();
     }
   }
 
