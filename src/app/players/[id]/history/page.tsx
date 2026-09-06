@@ -19,6 +19,11 @@ const GRANULARITIES: { key: Granularity; label: string }[] = [
   { key: "month", label: "Month" },
 ];
 
+// Read-heavy page backed by Postgres — serve from the CDN cache and
+// regenerate in the background so navigation isn't a cold DB round-trip
+// every time. Vote-driven numbers lag by at most this many seconds.
+export const revalidate = 120;
+
 export default async function PlayerHistoryPage({
   params,
   searchParams,

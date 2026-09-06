@@ -7,6 +7,11 @@ import { BackButton } from "@/components/BackButton";
 
 export const metadata = { title: "Team Rankings — Stat Padder" };
 
+// Read-heavy page backed by Postgres — serve from the CDN cache and
+// regenerate in the background so navigation isn't a cold DB round-trip
+// every time. Vote-driven numbers lag by at most this many seconds.
+export const revalidate = 120;
+
 export default async function TeamRankingsPage({
   searchParams,
 }: {

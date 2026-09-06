@@ -46,6 +46,11 @@ function cellClass(align?: "right", pinMobile?: boolean) {
   }`;
 }
 
+// Read-heavy page backed by Postgres — serve from the CDN cache and
+// regenerate in the background so navigation isn't a cold DB round-trip
+// every time. Vote-driven numbers lag by at most this many seconds.
+export const revalidate = 120;
+
 export default async function PlayerStatsPage({
   searchParams,
 }: {

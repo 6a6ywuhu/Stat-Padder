@@ -330,6 +330,7 @@ h1 {
   height: var(--size);
   border-radius: 50%;
   background: var(--color-starfield-dot);
+  opacity: 0.7;
   pointer-events: none;
   animation-name: star-drift;
   animation-duration: var(--drift-dur, 8s);
@@ -357,9 +358,13 @@ h1 {
   animation-direction: normal, normal;
 }
 
+/* Twinkle via opacity only — a compositor-cheap fade up to full brightness
+   and back. (An earlier version animated `filter: brightness()`, which
+   forces a repaint every frame for every sparkling star and made
+   interaction janky on weaker GPUs.) */
 @keyframes star-sparkle {
-  0%, 88%, 100% { filter: brightness(1); opacity: 1; }
-  94% { filter: brightness(2.4); opacity: 1; }
+  0%, 88%, 100% { opacity: 0.7; }
+  94% { opacity: 1; }
 }
 
 /* Cartridge button feel: hard square corners, a solid pixel offset shadow
@@ -410,8 +415,8 @@ h1 {
      is behind it into a soft even field — that's what keeps the text
      legible on every team and in either theme. */
   background-color: color-mix(in srgb, var(--color-card) 36%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
   padding: 0.375rem 0.75rem;
   font-size: 0.75rem;
   line-height: 1rem;

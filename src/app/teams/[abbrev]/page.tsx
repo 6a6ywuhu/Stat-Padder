@@ -11,6 +11,11 @@ import { getScoredGroup, GroupSelector, PlayerWithTeam } from "@/lib/group-score
 import type { Position, SkaterPosition } from "@/lib/attributes";
 import type { ScoredPlayer } from "@/lib/scoring";
 
+// Read-heavy page backed by Postgres — serve from the CDN cache and
+// regenerate in the background so navigation isn't a cold DB round-trip
+// every time. Vote-driven numbers lag by at most this many seconds.
+export const revalidate = 120;
+
 export default async function TeamPage({ params }: { params: Promise<{ abbrev: string }> }) {
   const { abbrev } = await params;
 

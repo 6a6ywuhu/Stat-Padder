@@ -21,8 +21,8 @@ import type { ReactNode } from "react";
  * (slice, so cells stay square at any banner aspect ratio), behind the
  * banner content. */
 
-const COLS = 60;
-const ROWS = 20;
+const COLS = 48;
+const ROWS = 16;
 /** Steps the colour is snapped to — high enough that the bands flow. */
 const STEPS = 24;
 
