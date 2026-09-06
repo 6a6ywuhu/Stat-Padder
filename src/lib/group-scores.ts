@@ -90,7 +90,10 @@ export async function scoreGroupUncached(
 export const getScoredGroup: typeof scoreGroupUncached = unstable_cache(
   scoreGroupUncached,
   ["scored-group"],
-  { revalidate: 90 }
+  // Tagged "rankings" so a vote's revalidateTag() also drops this — the
+  // player page's attribute bars come from here, and they need to reflect
+  // a fresh vote, not sit on the 90s window.
+  { revalidate: 90, tags: ["rankings"] }
 );
 
 const VALID_SKATER_POSITIONS: SkaterPosition[] = ["C", "LW", "RW", "D"];

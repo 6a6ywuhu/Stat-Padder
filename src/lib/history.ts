@@ -76,7 +76,7 @@ async function computePlayerHistory(
 export const getPlayerHistory: typeof computePlayerHistory = unstable_cache(
   computePlayerHistory,
   ["player-history"],
-  { revalidate: 120 }
+  { revalidate: 120, tags: ["rankings"] }
 );
 
 export function isValidHistorySeries(series: string, position: Position): boolean {

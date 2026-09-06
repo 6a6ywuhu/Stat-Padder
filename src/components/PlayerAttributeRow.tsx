@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Minus, Plus } from "@phosphor-icons/react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
@@ -18,7 +19,7 @@ export function PlayerAttributeRow({
   attribute: string;
   label: string;
   /** Kept for API compatibility with callers; the bar direction is now
-   *  derived from the live optimistic count. */
+   *  derived from the live count. */
   direction?: Direction;
   pct: number;
   positiveVotes: number;
@@ -26,23 +27,48 @@ export function PlayerAttributeRow({
   net?: number;
   color?: BarColor;
 }) {
-  // Seeded from the server render, then updated optimistically so a click
-  // lands instantly — the POST just persists it in the background.
-  const [pos, setPos] = useState(positiveVotes);
-  const [neg, setNeg] = useState(negativeVotes);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
+  // Counts committed on the server when this row first mounted, plus the
+  // votes made here since. Displaying `max(currentServerCount, seed + local)`
+  // means an optimistic vote shows instantly and never snaps backward — a
+  // background refresh that hasn't caught up yet just loses the max().
+  const seedPos = useRef(positiveVotes).current;
+  const seedNeg = useRef(negativeVotes).current;
+  const [optUp, setOptUp] = useState(0);
+  const [optDown, setOptDown] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(0);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const pos = Math.max(positiveVotes, seedPos + optUp);
+  const neg = Math.max(negativeVotes, seedNeg + optDown);
   const net = pos - neg;
-  // Nudge the bar toward the new value without the group-scaled pct the
-  // server computes — it reconciles exactly on the next page load.
+
+  const serverNet = positiveVotes - negativeVotes;
   const shownDirection: Direction = net > 0 ? "positive" : net < 0 ? "negative" : "zero";
+  // pct is proportional to net within the comparison group, and one vote
+  // doesn't move the group's max — so scaling the server pct by the net
+  // ratio tracks the real bar until a refresh reconciles it exactly.
   const shownPct =
-    net === 0 ? 0 : Math.max(4, Math.min(100, pct === 0 ? 12 : pct));
+    net === 0
+      ? 0
+      : serverNet !== 0 && Math.sign(net) === Math.sign(serverNet)
+        ? Math.max(3, Math.min(100, pct * (net / serverNet)))
+        : Math.max(3, Math.min(100, Math.abs(net) * 6));
+
+  function scheduleRefresh() {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => {
+      if (inFlight.current === 0) router.refresh();
+    }, 800);
+  }
 
   async function vote(value: 1 | -1) {
     setError(null);
-    if (value === 1) setPos((p) => p + 1);
-    else setNeg((n) => n + 1);
+    inFlight.current += 1;
+    if (value === 1) setOptUp((u) => u + 1);
+    else setOptDown((d) => d + 1);
 
     try {
       const res = await fetch("/api/votes", {
@@ -53,13 +79,16 @@ export function PlayerAttributeRow({
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "Vote failed.");
-        if (value === 1) setPos((p) => p - 1);
-        else setNeg((n) => n - 1);
+        if (value === 1) setOptUp((u) => Math.max(0, u - 1));
+        else setOptDown((d) => Math.max(0, d - 1));
       }
     } catch {
       setError("Network error — vote not recorded.");
-      if (value === 1) setPos((p) => p - 1);
-      else setNeg((n) => n - 1);
+      if (value === 1) setOptUp((u) => Math.max(0, u - 1));
+      else setOptDown((d) => Math.max(0, d - 1));
+    } finally {
+      inFlight.current -= 1;
+      scheduleRefresh();
     }
   }
 
