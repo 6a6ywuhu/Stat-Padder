@@ -129,6 +129,7 @@ export default async function PlayerProfilePage({
                     {" · "}
                     <Link
                       href={`/teams/${player.team.id}`}
+                      prefetch={false}
                       className="font-medium underline-offset-2 hover:underline"
                     >
                       {player.team.city} {player.team.name}
@@ -164,7 +165,11 @@ export default async function PlayerProfilePage({
                 votes
               </span>
               <FavoriteButton playerId={player.id} initialFavorited={isFavorited} />
-              <Link href={`/players/${player.id}/history`} className="btn-hero-chip">
+              <Link
+                href={`/players/${player.id}/history`}
+                prefetch={false}
+                className="btn-hero-chip"
+              >
                 <ChartLineUp size={13} />
                 Rating History
               </Link>
@@ -217,6 +222,7 @@ export default async function PlayerProfilePage({
                 </p>
                 <Link
                   href={`/players/${player.id}/history`}
+                  prefetch={false}
                   className="text-xs font-medium text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
                 >
                   View rating history →

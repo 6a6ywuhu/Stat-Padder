@@ -2,9 +2,26 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus } from "@phosphor-icons/react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
+
+// Inline glyphs instead of `@phosphor-icons/react` — this row mounts 20+
+// times per profile and is the thing users actually click; pulling the
+// icon barrel into it bloated the client chunk and slowed hydration.
+function MinusGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 8h10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function PlusGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export function PlayerAttributeRow({
   playerId,
@@ -108,7 +125,7 @@ export function PlayerAttributeRow({
               onClick={() => vote(-1)}
               className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-negative)]/50 text-[var(--color-negative)] transition-all hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10 active:scale-90"
             >
-              <Minus size={11} weight="bold" />
+              <MinusGlyph />
             </button>
             <button
               type="button"
@@ -116,7 +133,7 @@ export function PlayerAttributeRow({
               onClick={() => vote(1)}
               className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-positive)]/50 text-[var(--color-positive)] transition-all hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10 active:scale-90"
             >
-              <Plus size={11} weight="bold" />
+              <PlusGlyph />
             </button>
           </div>
         </div>
