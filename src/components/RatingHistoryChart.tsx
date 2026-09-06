@@ -15,7 +15,7 @@ import type { HistoryPoint } from "@/lib/history";
 export function RatingHistoryChart({ data, label }: { data: HistoryPoint[]; label: string }) {
   if (data.length === 0) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] text-sm text-[var(--color-fg-muted)]">
+      <div className="flex h-72 items-center justify-center rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] text-sm text-[var(--color-fg-muted)]">
         No votes yet for this period — nothing to chart.
       </div>
     );
@@ -25,7 +25,7 @@ export function RatingHistoryChart({ data, label }: { data: HistoryPoint[]; labe
   const lineColor = last >= 0 ? "var(--color-positive)" : "var(--color-negative)";
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+    <div className="rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-4">
       <ResponsiveContainer width="100%" height={288}>
         <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
           <CartesianGrid stroke="var(--color-border)" vertical={false} />

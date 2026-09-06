@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus } from "@phosphor-icons/react";
-import { NetBarTrack } from "./AttributeBar";
-import { useVotesRemaining } from "./VotesRemainingProvider";
+import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
 
 export function PlayerAttributeRow({
@@ -16,6 +15,7 @@ export function PlayerAttributeRow({
   positiveVotes,
   negativeVotes,
   net,
+  color,
 }: {
   playerId: string;
   attribute: string;
@@ -25,14 +25,11 @@ export function PlayerAttributeRow({
   positiveVotes: number;
   negativeVotes: number;
   net: number;
+  color?: BarColor;
 }) {
   const router = useRouter();
-  const { status, applyVoteResult } = useVotesRemaining();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const outOfVotes = status !== null && status.remaining <= 0;
-  const disabled = pending || outOfVotes;
 
   async function vote(value: 1 | -1) {
     setPending(true);
@@ -44,13 +41,11 @@ export function PlayerAttributeRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId, attribute, value }),
       });
-      const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Vote failed.");
-        if (typeof data.remaining === "number") applyVoteResult(data.remaining, status?.limit ?? 30);
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Vote failed.");
         return;
       }
-      applyVoteResult(data.remaining, data.limit);
       router.refresh();
     } catch {
       setError("Network error — vote not recorded.");
@@ -60,10 +55,10 @@ export function PlayerAttributeRow({
   }
 
   return (
-    <div className="py-3">
-      <div className="mb-1.5 flex items-center justify-between gap-3">
+    <div className="py-1.5">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-[var(--color-fg)]">{label}</span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <span className="text-xs font-semibold tabular-nums text-[var(--color-fg-muted)]">
             {net > 0 ? "+" : ""}
             {net}
@@ -72,32 +67,32 @@ export function PlayerAttributeRow({
             <button
               type="button"
               aria-label={`Downvote ${label}`}
-              disabled={disabled}
+              disabled={pending}
               onClick={() => vote(-1)}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-negative)] transition-colors hover:bg-[var(--color-negative)]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-negative)]/50 text-[var(--color-negative)] transition-all hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              <Minus size={14} weight="bold" />
+              <Minus size={11} weight="bold" />
             </button>
             <button
               type="button"
               aria-label={`Upvote ${label}`}
-              disabled={disabled}
+              disabled={pending}
               onClick={() => vote(1)}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-positive)] transition-colors hover:bg-[var(--color-positive)]/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-positive)]/50 text-[var(--color-positive)] transition-all hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              <Plus size={14} weight="bold" />
+              <Plus size={11} weight="bold" />
             </button>
           </div>
         </div>
       </div>
 
-      <NetBarTrack direction={direction} pct={pct} />
+      <NetBarTrack direction={direction} pct={pct} color={color} />
 
       {error && <p className="mt-1 text-xs text-[var(--color-negative)]">{error}</p>}
 
-      <div className="mt-1 flex justify-between text-[11px] text-[var(--color-fg-faint)]">
-        <span>{positiveVotes} up</span>
+      <div className="mt-0.5 flex justify-between text-[10px] text-[var(--color-fg-faint)]">
         <span>{negativeVotes} down</span>
+        <span>{positiveVotes} up</span>
       </div>
     </div>
   );

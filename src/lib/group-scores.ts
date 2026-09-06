@@ -18,7 +18,8 @@ export type GroupSelector =
  */
 export async function getScoredGroup(
   selector: GroupSelector,
-  statuses: PlayerStatus[] = ["ACTIVE", "INJURED"]
+  statuses: PlayerStatus[] = ["ACTIVE", "INJURED"],
+  opts: { since?: Date } = {}
 ): Promise<ScoredPlayer<PlayerWithTeam>[]> {
   const positions: Position[] = selector.kind === "goalie" ? ["G"] : selector.positions;
   if (positions.length === 0) return [];
@@ -28,7 +29,7 @@ export async function getScoredGroup(
     include: { team: true },
   });
 
-  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id));
+  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), opts.since);
 
   const entries = players.map((p) => ({
     player: p,

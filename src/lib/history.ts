@@ -1,9 +1,7 @@
 import { prisma } from "./prisma";
 import { attributesForPosition, isBoosterAttribute, Position } from "./attributes";
-import { getScoredGroup, GroupSelector, PlayerWithTeam } from "./group-scores";
-import { ScoredPlayer } from "./scoring";
 
-export type Granularity = "day" | "month" | "year";
+export type Granularity = "day" | "week" | "month";
 
 export type HistorySeries = "overall" | string; // "overall" or an attribute key
 
@@ -13,9 +11,19 @@ function bucketKey(date: Date, granularity: Granularity): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  if (granularity === "year") return `${y}`;
   if (granularity === "month") return `${y}-${m}`;
+  if (granularity === "week") return isoWeekKey(date);
   return `${y}-${m}-${d}`;
+}
+
+/** ISO-8601 week key, e.g. "2026-W35" — weeks start Monday; week 1 holds the year's first Thursday. */
+function isoWeekKey(date: Date): string {
+  const thursday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  thursday.setDate(thursday.getDate() - ((thursday.getDay() + 6) % 7) + 3); // Thursday of this week
+  const firstThursday = new Date(thursday.getFullYear(), 0, 4);
+  firstThursday.setDate(firstThursday.getDate() - ((firstThursday.getDay() + 6) % 7) + 3);
+  const week = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / 604800000);
+  return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 /**
@@ -65,83 +73,4 @@ export async function getPlayerHistory(
 export function isValidHistorySeries(series: string, position: Position): boolean {
   if (series === "overall") return true;
   return attributesForPosition(position).includes(series as never) || isBoosterAttribute(series);
-}
-
-// Categorical palette for comparing multiple players on one chart — kept
-// clear of the site's semantic pure-red/pure-green (those mean
-// negative/positive elsewhere, not "which player is this line").
-const CHART_PALETTE = [
-  "#3b82f6", // blue
-  "#a855f7", // purple
-  "#f97316", // orange
-  "#06b6d4", // cyan
-  "#eab308", // yellow
-  "#ec4899", // pink
-  "#6366f1", // indigo
-  "#14b8a6", // teal
-  "#8b5cf6", // violet
-  "#d946ef", // fuchsia
-];
-
-export type MultiPlayerSeries = {
-  playerId: string;
-  name: string;
-  color: string;
-  points: (number | null)[];
-};
-
-export type MultiPlayerHistory = {
-  buckets: string[];
-  series: MultiPlayerSeries[];
-};
-
-function valueForRanking(s: ScoredPlayer<PlayerWithTeam>, series: HistorySeries): number {
-  if (series === "overall") return s.overallValue;
-  return s.attributeBars[series]?.net ?? s.boosterBars[series]?.net ?? 0;
-}
-
-/**
- * Ranks the current comparison group by the chosen series (Overall or one
- * attribute), takes the top N, and fetches each of their histories on the
- * same bucket timeline — forward-filling between a player's own votes so
- * the lines are comparable, but never before their first vote (gaps stay
- * gaps, they aren't invented as zero).
- */
-export async function getTopPlayersHistory(
-  selector: GroupSelector,
-  series: HistorySeries,
-  granularity: Granularity,
-  limit = 10
-): Promise<MultiPlayerHistory> {
-  const scored = await getScoredGroup(selector);
-  if (scored.length === 0) return { buckets: [], series: [] };
-
-  const top = [...scored]
-    .sort((a, b) => valueForRanking(b, series) - valueForRanking(a, series) || b.totalVotes - a.totalVotes)
-    .slice(0, limit);
-
-  const perPlayerHistory = await Promise.all(
-    top.map((s) => getPlayerHistory(s.player.id, s.position, series, granularity))
-  );
-
-  const bucketSet = new Set<string>();
-  for (const history of perPlayerHistory) for (const point of history) bucketSet.add(point.bucket);
-  const buckets = Array.from(bucketSet).sort();
-
-  const chartSeries: MultiPlayerSeries[] = top.map((s, i) => {
-    const historyByBucket = new Map(perPlayerHistory[i].map((p) => [p.bucket, p.value]));
-    let last: number | null = null;
-    const points = buckets.map((bucket) => {
-      if (historyByBucket.has(bucket)) last = historyByBucket.get(bucket)!;
-      return last;
-    });
-    return {
-      playerId: s.player.id,
-      name: `${s.player.firstName} ${s.player.lastName}`,
-      color: CHART_PALETTE[i % CHART_PALETTE.length],
-      points,
-    };
-  });
-
-  return { buckets, series: chartSeries };
 }

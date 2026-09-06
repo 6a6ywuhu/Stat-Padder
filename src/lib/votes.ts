@@ -1,17 +1,20 @@
 import { prisma } from "./prisma";
 import { PlayerVoteMap } from "./scoring";
 import { Attribute, BoosterAttribute } from "./attributes";
-import { DAILY_VOTE_LIMIT } from "./voter";
 
-/** Vote maps for many players in one query — used by rankings/comparison pages. */
+/**
+ * Vote maps for many players in one query — used by rankings/comparison pages.
+ * Pass `since` to only count votes cast on or after that moment (week/month views).
+ */
 export async function getVoteMapsForPlayers(
-  playerIds: string[]
+  playerIds: string[],
+  since?: Date
 ): Promise<Record<string, PlayerVoteMap>> {
   if (playerIds.length === 0) return {};
 
   const rows = await prisma.attributeVote.groupBy({
     by: ["playerId", "attribute", "value"],
-    where: { playerId: { in: playerIds } },
+    where: { playerId: { in: playerIds }, ...(since ? { createdAt: { gte: since } } : {}) },
     _count: { _all: true },
   });
 
@@ -33,38 +36,6 @@ export async function getVoteMapForPlayer(playerId: string): Promise<PlayerVoteM
   return maps[playerId] ?? {};
 }
 
-export type DailyVoteStatus = {
-  used: number;
-  remaining: number;
-  limit: number;
-  /** Midnight tonight (server local time) — when today's budget refills. */
-  resetAt: string;
-};
-
-function startOfTomorrow(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-}
-
-/** How many votes the voter has cast since midnight, against their daily budget. */
-export async function getDailyVoteStatus(voterToken: string | undefined): Promise<DailyVoteStatus> {
-  const resetAt = startOfTomorrow();
-  const since = new Date(resetAt.getTime() - 24 * 60 * 60 * 1000); // midnight this morning
-
-  if (!voterToken) {
-    return { used: 0, remaining: DAILY_VOTE_LIMIT, limit: DAILY_VOTE_LIMIT, resetAt: resetAt.toISOString() };
-  }
-
-  const used = await prisma.attributeVote.count({ where: { voterToken, createdAt: { gte: since } } });
-
-  return {
-    used,
-    remaining: Math.max(0, DAILY_VOTE_LIMIT - used),
-    limit: DAILY_VOTE_LIMIT,
-    resetAt: resetAt.toISOString(),
-  };
-}
-
 const SPIKE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const SPIKE_THRESHOLD = 40; // votes on one player/attribute within the window
 const SPIKE_REPORT_COOLDOWN_MS = 60 * 60 * 1000; // don't re-flag the same combo within an hour
@@ -75,6 +46,8 @@ export async function recordVoteAndCheckSpike(params: {
   value: 1 | -1;
   voterToken: string;
   voterHash: string;
+  /** Set when the voter is signed in — never surfaced publicly, only in their own account's history. */
+  userId?: string;
 }) {
   await prisma.attributeVote.create({
     data: {
@@ -83,6 +56,7 @@ export async function recordVoteAndCheckSpike(params: {
       value: params.value,
       voterToken: params.voterToken,
       voterHash: params.voterHash,
+      userId: params.userId,
     },
   });
 

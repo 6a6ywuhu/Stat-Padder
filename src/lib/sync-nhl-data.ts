@@ -34,7 +34,6 @@ async function upsertRosterPlayer(p: NhlRosterPlayer, teamAbbrev: string, positi
     firstName: p.firstName.default,
     lastName: p.lastName.default,
     position: mapPosition(positionCode),
-    status: "ACTIVE" as const,
     teamId: teamAbbrev,
     headshotUrl: p.headshot,
     heightInches: p.heightInInches,
@@ -42,7 +41,14 @@ async function upsertRosterPlayer(p: NhlRosterPlayer, teamAbbrev: string, positi
     birthDate: p.birthDate,
     birthCountry: p.birthCountry,
   };
-  await prisma.player.upsert({ where: { nhlId: p.id }, create: { nhlId: p.id, ...data }, update: data });
+  // status is intentionally omitted from `update`: the NHL roster endpoint
+  // has no injury data, so an admin-set INJURED status (src/app/admin) must
+  // survive a re-sync instead of being reset to ACTIVE every time.
+  await prisma.player.upsert({
+    where: { nhlId: p.id },
+    create: { nhlId: p.id, status: "ACTIVE", ...data },
+    update: data,
+  });
 }
 
 function sleep(ms: number) {
@@ -77,8 +83,17 @@ export async function runSync(onlyAbbrevs: string[] = []): Promise<SyncResult> {
   for (const team of standings) {
     const abbrev = team.teamAbbrev.default;
     if (filter.length > 0 && !filter.includes(abbrev)) continue;
-    const city = team.placeName?.default ?? "";
-    const name = team.teamCommonName?.default ?? team.teamName.default.replace(`${city} `, "");
+    const commonName = team.teamCommonName?.default ?? "";
+    const fullName = team.teamName.default;
+    // Most teams' placeName is a clean city, but the Islanders and Rangers
+    // come through as "NY Islanders" / "NY Rangers". The full team name is
+    // reliable ("New York Rangers"), so derive the city by stripping the
+    // common name off the end and only fall back to placeName otherwise.
+    const city =
+      commonName && fullName.endsWith(` ${commonName}`)
+        ? fullName.slice(0, -(commonName.length + 1))
+        : team.placeName?.default ?? "";
+    const name = commonName || fullName.replace(`${city} `, "");
     await upsertTeam(abbrev, name, city, team.conferenceName, team.divisionName);
   }
 

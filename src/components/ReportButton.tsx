@@ -37,7 +37,7 @@ export function ReportButton({ playerId }: { playerId: string }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
+        className="btn-hero-chip cursor-pointer"
       >
         <Flag size={13} />
         Report
@@ -60,7 +60,7 @@ export function ReportButton({ playerId }: { playerId: string }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="cursor-pointer rounded-full px-3 py-1.5 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+              className="cursor-pointer rounded-none px-3 py-1.5 text-xs text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
             >
               Cancel
             </button>
@@ -68,7 +68,7 @@ export function ReportButton({ playerId }: { playerId: string }) {
               type="button"
               disabled={submitting || message.trim().length < 3}
               onClick={submit}
-              className="cursor-pointer rounded-full bg-[var(--color-fg)] px-3 py-1.5 text-xs font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-none bg-[var(--color-fg)] px-3 py-1.5 text-xs font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {submitting ? "Submitting…" : "Submit"}
             </button>
@@ -80,7 +80,7 @@ export function ReportButton({ playerId }: { playerId: string }) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[var(--color-fg)] px-4 py-2 text-sm font-medium text-[var(--color-bg)] shadow-lg"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-[3px] bg-[var(--color-fg)] px-4 py-2 text-sm font-medium text-[var(--color-bg)] shadow-lg"
         >
           {toast}
         </div>

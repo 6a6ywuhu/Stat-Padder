@@ -120,13 +120,13 @@ export function AdminDashboard() {
         <button
           type="button"
           onClick={logout}
-          className="cursor-pointer rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)]"
+          className="cursor-pointer rounded-none border-2 border-[var(--color-border-strong)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)]"
         >
           Sign out
         </button>
       </div>
 
-      <section className="mt-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+      <section className="mt-8 rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-bold text-[var(--color-fg)]">Data sync</h2>
@@ -139,7 +139,7 @@ export function AdminDashboard() {
             type="button"
             onClick={runSync}
             disabled={syncing}
-            className="shrink-0 cursor-pointer rounded-full bg-[var(--color-fg)] px-4 py-2 text-sm font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="shrink-0 cursor-pointer rounded-none bg-[var(--color-fg)] px-4 py-2 text-sm font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {syncing ? "Syncing…" : "Sync now"}
           </button>
@@ -153,7 +153,7 @@ export function AdminDashboard() {
         </h2>
         <div className="mt-3 space-y-2">
           {!loadingReports && openReports.length === 0 && (
-            <p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm text-[var(--color-fg-muted)]">
+            <p className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm text-[var(--color-fg-muted)]">
               No open reports.
             </p>
           )}
@@ -183,10 +183,10 @@ export function AdminDashboard() {
           value={playerQuery}
           onChange={(e) => setPlayerQuery(e.target.value)}
           placeholder="Search a player to fix…"
-          className="mt-3 w-full max-w-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus-visible:border-[var(--color-ring)]"
+          className="mt-3 w-full max-w-sm rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus-visible:border-[var(--color-ring)]"
         />
         {visiblePlayerResults.length > 0 && (
-          <div className="mt-2 max-w-sm divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
+          <div className="mt-2 max-w-sm divide-y divide-[var(--color-border)] rounded-none border-2 border-[var(--color-border-strong)]">
             {visiblePlayerResults.map((p) => (
               <button
                 key={p.id}
@@ -209,26 +209,26 @@ export function AdminDashboard() {
         )}
 
         {editing && (
-          <div className="mt-4 max-w-sm space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+          <div className="mt-4 max-w-sm space-y-3 rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-4">
             <Field label="First name">
               <input
                 value={editing.firstName}
                 onChange={(e) => setEditing({ ...editing, firstName: e.target.value })}
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
+                className="w-full rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
               />
             </Field>
             <Field label="Last name">
               <input
                 value={editing.lastName}
                 onChange={(e) => setEditing({ ...editing, lastName: e.target.value })}
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
+                className="w-full rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
               />
             </Field>
             <Field label="Team">
               <select
                 value={editing.teamId ?? ""}
                 onChange={(e) => setEditing({ ...editing, teamId: e.target.value || null })}
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
+                className="w-full rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
               >
                 <option value="">Free agent</option>
                 {teams.map((t) => (
@@ -242,7 +242,7 @@ export function AdminDashboard() {
               <select
                 value={editing.status}
                 onChange={(e) => setEditing({ ...editing, status: e.target.value as AdminPlayer["status"] })}
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
+                className="w-full rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus-visible:border-[var(--color-ring)]"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="INJURED">Injured</option>
@@ -253,7 +253,7 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={saveEdit}
-                className="cursor-pointer rounded-full bg-[var(--color-fg)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)]"
+                className="cursor-pointer rounded-none bg-[var(--color-fg)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)]"
               >
                 Save
               </button>
@@ -277,7 +277,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ReportRow({ report, onUpdate }: { report: Report; onUpdate: (id: string, status: Report["status"]) => void }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+    <div className="rounded-none border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-faint)]">
@@ -299,20 +299,20 @@ function ReportRow({ report, onUpdate }: { report: Report; onUpdate: (id: string
             <button
               type="button"
               onClick={() => onUpdate(report.id, "RESOLVED")}
-              className="cursor-pointer rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-medium hover:bg-[var(--color-bg-subtle)]"
+              className="cursor-pointer rounded-none border-2 border-[var(--color-border-strong)] px-3 py-1 text-xs font-medium hover:bg-[var(--color-bg-subtle)]"
             >
               Resolve
             </button>
             <button
               type="button"
               onClick={() => onUpdate(report.id, "DISMISSED")}
-              className="cursor-pointer rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-medium hover:bg-[var(--color-bg-subtle)]"
+              className="cursor-pointer rounded-none border-2 border-[var(--color-border-strong)] px-3 py-1 text-xs font-medium hover:bg-[var(--color-bg-subtle)]"
             >
               Dismiss
             </button>
           </div>
         ) : (
-          <span className="shrink-0 rounded-full border border-[var(--color-border)] px-2 py-1 text-[10px] uppercase text-[var(--color-fg-faint)]">
+          <span className="shrink-0 rounded-none border-2 border-[var(--color-border-strong)] px-2 py-1 text-[10px] uppercase text-[var(--color-fg-faint)]">
             {report.status}
           </span>
         )}

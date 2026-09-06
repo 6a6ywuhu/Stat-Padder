@@ -39,7 +39,7 @@ function PageLink({
 }) {
   if (disabled) {
     return (
-      <span className="cursor-not-allowed rounded-full border border-[var(--color-border)] px-4 py-1.5 text-sm font-medium text-[var(--color-fg-faint)] opacity-50">
+      <span className="cursor-not-allowed rounded-none border-2 border-[var(--color-border)] px-4 py-1.5 font-display text-sm font-semibold text-[var(--color-fg-faint)] opacity-50">
         {children}
       </span>
     );
@@ -47,7 +47,8 @@ function PageLink({
   return (
     <Link
       href={hrefFor(page)}
-      className="rounded-full border border-[var(--color-border)] px-4 py-1.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg)]"
+      replace
+      className="rounded-none border-2 border-[var(--color-border-strong)] px-4 py-1.5 font-display text-sm font-semibold text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent-text)]"
     >
       {children}
     </Link>

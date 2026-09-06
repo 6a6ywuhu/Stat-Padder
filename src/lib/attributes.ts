@@ -4,7 +4,10 @@ export type SkaterAttribute =
   | "control"
   | "sense"
   | "strength"
-  | "playmaking";
+  | "playmaking"
+  | "anticipation"
+  | "disruption"
+  | "coverage";
 
 export type GoalieAttribute =
   | "mobility"
@@ -18,11 +21,30 @@ export type Attribute = SkaterAttribute | GoalieAttribute;
 
 export const SKATER_ATTRIBUTES: SkaterAttribute[] = [
   "mobility",
-  "shooting",
-  "control",
   "sense",
   "strength",
+  "control",
+  "shooting",
   "playmaking",
+  "anticipation",
+  "disruption",
+  "coverage",
+];
+
+/**
+ * Skater attributes grouped into 3 categories for display (voting page,
+ * rating history picker, ranking card hover-preview). Goalies don't have
+ * categories — GOALIE_ATTRIBUTES stays one flat list. All 9 attributes
+ * here still factor into a skater's Overall score the same way, via
+ * SKATER_ATTRIBUTES/attributesForPosition — this is a presentation
+ * grouping only, not a separate scoring track (unlike boosters).
+ */
+export type AttributeCategory = "general" | "offense" | "defense";
+
+export const ATTRIBUTE_CATEGORIES: { key: AttributeCategory; label: string; attributes: SkaterAttribute[] }[] = [
+  { key: "general", label: "General", attributes: ["mobility", "sense", "strength"] },
+  { key: "offense", label: "Offense", attributes: ["control", "shooting", "playmaking"] },
+  { key: "defense", label: "Defense", attributes: ["anticipation", "disruption", "coverage"] },
 ];
 
 export const GOALIE_ATTRIBUTES: GoalieAttribute[] = [
@@ -41,6 +63,9 @@ export const ATTRIBUTE_LABELS: Record<Attribute, string> = {
   sense: "Sense",
   strength: "Strength",
   playmaking: "Playmaking",
+  anticipation: "Anticipation",
+  disruption: "Disruption",
+  coverage: "Coverage",
   blocker: "Blocker",
   glove: "Glove",
   tracking: "Tracking",

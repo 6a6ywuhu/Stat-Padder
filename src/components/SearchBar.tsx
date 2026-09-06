@@ -47,7 +47,7 @@ export function SearchBar({ variant = "header" }: { variant?: "header" | "hero" 
 
   return (
     <div ref={containerRef} className={`relative ${variant === "hero" ? "w-full max-w-xl" : "w-full max-w-xs"}`}>
-      <div className="flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-4 py-2">
+      <div className="flex items-center gap-2 rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] px-4 py-2 transition-colors focus-within:border-[var(--color-accent)]">
         <MagnifyingGlass size={16} className="text-[var(--color-fg-muted)] shrink-0" aria-hidden="true" />
         <input
           type="text"
@@ -57,7 +57,7 @@ export function SearchBar({ variant = "header" }: { variant?: "header" | "hero" 
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder="Search players or teams…"
+          placeholder="Search"
           aria-label="Search players or teams"
           className="w-full bg-transparent text-sm text-[var(--color-fg)] outline-none placeholder:text-[var(--color-fg-faint)]"
         />
@@ -77,7 +77,7 @@ export function SearchBar({ variant = "header" }: { variant?: "header" | "hero" 
       </div>
 
       {open && query.trim().length >= 2 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-96 overflow-auto rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] shadow-lg">
           {loading && (
             <p className="px-4 py-3 text-sm text-[var(--color-fg-muted)]">Searching…</p>
           )}

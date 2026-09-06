@@ -43,10 +43,3 @@ export function voterHash(req: NextRequest): string {
   const ua = req.headers.get("user-agent") || "unknown";
   return createHash("sha256").update(`${ip}::${ua}::${HASH_SALT}`).digest("hex");
 }
-
-/**
- * Voting budget: a shared pool of votes usable on any attribute, on any
- * player, rather than a per-attribute cooldown. Resets on the calendar day
- * (midnight, server local time) — see getDailyVoteStatus in votes.ts.
- */
-export const DAILY_VOTE_LIMIT = 30;

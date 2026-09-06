@@ -2,20 +2,18 @@ import Link from "next/link";
 import { CaretDown, CaretUp } from "@phosphor-icons/react/dist/ssr";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSeasonId, getSkaterSummary, getGoalieSummary, StatSortKey } from "@/lib/nhl-api";
+import { BackButton } from "@/components/BackButton";
 
 export const metadata = { title: "Player Stats — Stat Padder" };
-
-function formatSeason(seasonId: number) {
-  const start = Math.floor(seasonId / 10000);
-  const end = seasonId % 10000;
-  return `${start}-${String(end).slice(2)}`;
-}
 
 type Column = {
   key: string; // property name the NHL stats API sorts by
   label: string;
   align?: "right";
   defaultDir: "ASC" | "DESC";
+  /** Pinned to the right edge on mobile (cleared at `sm`) so the headline stat
+   *  stays visible without scrolling, no matter how much room Player/Team take. */
+  pinMobile?: boolean;
 };
 
 const SKATER_COLUMNS: Column[] = [
@@ -24,7 +22,7 @@ const SKATER_COLUMNS: Column[] = [
   { key: "gamesPlayed", label: "GP", align: "right", defaultDir: "DESC" },
   { key: "goals", label: "G", align: "right", defaultDir: "DESC" },
   { key: "assists", label: "A", align: "right", defaultDir: "DESC" },
-  { key: "points", label: "P", align: "right", defaultDir: "DESC" },
+  { key: "points", label: "P", align: "right", defaultDir: "DESC", pinMobile: true },
   { key: "plusMinus", label: "+/-", align: "right", defaultDir: "DESC" },
 ];
 
@@ -32,12 +30,21 @@ const GOALIE_COLUMNS: Column[] = [
   { key: "lastName", label: "Player", defaultDir: "ASC" },
   { key: "teamAbbrevs", label: "Team", defaultDir: "ASC" },
   { key: "gamesPlayed", label: "GP", align: "right", defaultDir: "DESC" },
-  { key: "wins", label: "W", align: "right", defaultDir: "DESC" },
+  { key: "wins", label: "W", align: "right", defaultDir: "DESC", pinMobile: true },
   { key: "losses", label: "L", align: "right", defaultDir: "DESC" },
   { key: "goalsAgainstAverage", label: "GAA", align: "right", defaultDir: "ASC" },
   { key: "savePct", label: "SV%", align: "right", defaultDir: "DESC" },
   { key: "shutouts", label: "SO", align: "right", defaultDir: "DESC" },
 ];
+
+/** Pinned cells stick to the right edge of the mobile scroll area with a solid
+ *  backing (so scrolled-under columns don't show through) and a divider line;
+ *  all of that clears at `sm`, restoring the original desktop table exactly. */
+function cellClass(align?: "right", pinMobile?: boolean) {
+  return `px-3 py-2 ${align === "right" ? "text-right" : ""} ${
+    pinMobile ? "sticky right-0 z-10 bg-[var(--color-bg)] shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.15)] sm:static sm:shadow-none sm:bg-transparent" : ""
+  }`;
+}
 
 export default async function PlayerStatsPage({
   searchParams,
@@ -82,28 +89,31 @@ export default async function PlayerStatsPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <div className="mb-4">
+        <BackButton />
+      </div>
       <h1 className="font-display text-3xl font-bold text-[var(--color-fg)]">Player Stats</h1>
-      <p className="mt-1 text-sm text-[var(--color-fg-muted)]">
-        Real NHL stats for the {formatSeason(seasonId)} season, sourced live from the NHL Stats API.
-        Click a column to sort by it.
-      </p>
 
-      <div className="mt-6 flex rounded-full border border-[var(--color-border)] p-0.5 w-fit">
+      <div className="mt-6 inline-flex w-fit divide-x-2 divide-[var(--color-border-strong)] overflow-hidden rounded-none border-2 border-[var(--color-border-strong)]">
         <Link
           href="/player-stats"
-          className={`rounded-full px-3 py-1.5 text-sm font-medium ${!isGoalies ? "bg-[var(--color-fg)] text-[var(--color-bg)]" : "text-[var(--color-fg-muted)]"}`}
+          scroll={false}
+          replace
+          className={`px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wide ${!isGoalies ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"}`}
         >
           Skaters
         </Link>
         <Link
           href="/player-stats?type=goalies"
-          className={`rounded-full px-3 py-1.5 text-sm font-medium ${isGoalies ? "bg-[var(--color-fg)] text-[var(--color-bg)]" : "text-[var(--color-fg-muted)]"}`}
+          scroll={false}
+          replace
+          className={`px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wide ${isGoalies ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]" : "text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"}`}
         >
           Goalies
         </Link>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-[var(--color-border)]">
+      <div className="mt-6 overflow-x-auto rounded-md border-2 border-[var(--color-border-strong)]">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-left text-xs uppercase tracking-wide text-[var(--color-fg-faint)]">
@@ -113,11 +123,13 @@ export default async function PlayerStatsPage({
                 return (
                   <th
                     key={col.key}
-                    className={`px-3 py-2 ${col.align === "right" ? "text-right" : ""}`}
+                    className={`${cellClass(col.align, col.pinMobile)} ${col.pinMobile ? "sm:bg-[var(--color-bg-subtle)]" : ""}`}
                     aria-sort={active ? (activeDir === "ASC" ? "ascending" : "descending") : "none"}
                   >
                     <Link
                       href={sortHref(col)}
+                      scroll={false}
+                      replace
                       className={`inline-flex cursor-pointer items-center gap-0.5 hover:text-[var(--color-fg)] ${
                         col.align === "right" ? "flex-row-reverse" : ""
                       } ${active ? "text-[var(--color-fg)]" : ""}`}
@@ -143,9 +155,11 @@ export default async function PlayerStatsPage({
                     <td className="px-3 py-2 font-medium">
                       <PlayerLink localId={localIdByNhlId.get(r.playerId)} name={r.goalieFullName} />
                     </td>
-                    <td className="px-3 py-2 text-[var(--color-fg-muted)]">{r.teamAbbrevs}</td>
+                    <td className="px-3 py-2 text-[var(--color-fg-muted)]">
+                      <TeamLink abbrevs={r.teamAbbrevs} />
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.gamesPlayed}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{r.wins}</td>
+                    <td className={`${cellClass("right", true)} tabular-nums font-semibold`}>{r.wins}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.losses}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.goalsAgainstAverage?.toFixed(2)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{(r.savePct * 100)?.toFixed(1)}</td>
@@ -158,11 +172,13 @@ export default async function PlayerStatsPage({
                     <td className="px-3 py-2 font-medium">
                       <PlayerLink localId={localIdByNhlId.get(r.playerId)} name={r.skaterFullName} />
                     </td>
-                    <td className="px-3 py-2 text-[var(--color-fg-muted)]">{r.teamAbbrevs}</td>
+                    <td className="px-3 py-2 text-[var(--color-fg-muted)]">
+                      <TeamLink abbrevs={r.teamAbbrevs} />
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.gamesPlayed}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.goals}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.assists}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold">{r.points}</td>
+                    <td className={`${cellClass("right", true)} tabular-nums font-semibold`}>{r.points}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.plusMinus}</td>
                   </tr>
                 ))}
@@ -170,6 +186,27 @@ export default async function PlayerStatsPage({
         </table>
       </div>
     </div>
+  );
+}
+
+/** `abbrevs` is usually one team ("EDM"), but a mid-season trade gives the
+ *  stats API a comma-joined list ("NYR,LAK") — link each one individually. */
+function TeamLink({ abbrevs }: { abbrevs: string }) {
+  const teams = abbrevs
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  return (
+    <>
+      {teams.map((t, i) => (
+        <span key={t}>
+          {i > 0 && ", "}
+          <Link href={`/teams/${t}`} className="hover:underline underline-offset-2">
+            {t}
+          </Link>
+        </span>
+      ))}
+    </>
   );
 }
 

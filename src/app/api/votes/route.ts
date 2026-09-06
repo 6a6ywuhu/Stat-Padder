@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isValidVotableAttribute } from "@/lib/attributes";
 import { voterTokenCookieOptions, readOrCreateVoterToken, voterHash } from "@/lib/voter";
-import { getDailyVoteStatus, recordVoteAndCheckSpike } from "@/lib/votes";
+import { recordVoteAndCheckSpike } from "@/lib/votes";
+import { auth } from "@/lib/auth";
 
 const bodySchema = z.object({
   playerId: z.string().min(1),
@@ -30,14 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, isNew } = readOrCreateVoterToken(req);
-
-  const status = await getDailyVoteStatus(token);
-  if (status.remaining <= 0) {
-    return NextResponse.json(
-      { error: "You've used all your votes for today.", remaining: 0, resetAt: status.resetAt },
-      { status: 429 }
-    );
-  }
+  const session = await auth();
 
   await recordVoteAndCheckSpike({
     playerId,
@@ -45,13 +39,10 @@ export async function POST(req: NextRequest) {
     value,
     voterToken: token,
     voterHash: voterHash(req),
+    userId: session?.user?.id,
   });
 
-  const res = NextResponse.json({
-    ok: true,
-    remaining: status.remaining - 1,
-    limit: status.limit,
-  });
+  const res = NextResponse.json({ ok: true });
 
   if (isNew) {
     const opts = voterTokenCookieOptions();

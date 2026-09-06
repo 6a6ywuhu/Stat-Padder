@@ -5,17 +5,18 @@ import { prisma } from "@/lib/prisma";
 import { getPlayerHistory, isValidHistorySeries, Granularity } from "@/lib/history";
 import {
   attributesForPosition,
+  ATTRIBUTE_CATEGORIES,
   ATTRIBUTE_LABELS,
-  BOOSTER_ATTRIBUTES,
   BOOSTER_ATTRIBUTE_LABELS,
   Position,
 } from "@/lib/attributes";
 import { RatingHistoryChart } from "@/components/RatingHistoryChart";
+import { SeriesPicker, PickerGroup } from "@/components/SeriesPicker";
 
 const GRANULARITIES: { key: Granularity; label: string }[] = [
   { key: "day", label: "Day" },
+  { key: "week", label: "Week" },
   { key: "month", label: "Month" },
-  { key: "year", label: "Year" },
 ];
 
 export default async function PlayerHistoryPage({
@@ -32,8 +33,9 @@ export default async function PlayerHistoryPage({
   if (!player) notFound();
 
   const position = player.position as Position;
+  const isGoalie = position === "G";
   const granularity: Granularity =
-    sp.granularity === "day" || sp.granularity === "year" ? sp.granularity : "month";
+    sp.granularity === "day" || sp.granularity === "month" ? sp.granularity : "week";
   const series = sp.series && isValidHistorySeries(sp.series, position) ? sp.series : "overall";
 
   const data = await getPlayerHistory(player.id, position, series, granularity);
@@ -54,6 +56,28 @@ export default async function PlayerHistoryPage({
     return `/players/${playerId}/history?${params.toString()}`;
   }
 
+  const groups: PickerGroup[] = isGoalie
+    ? [
+        {
+          label: null,
+          items: coreAttrs.map((a) => ({
+            key: a,
+            label: ATTRIBUTE_LABELS[a],
+            href: hrefFor({ series: a }),
+            active: series === a,
+          })),
+        },
+      ]
+    : ATTRIBUTE_CATEGORIES.map((cat) => ({
+        label: cat.label,
+        items: cat.attributes.map((a) => ({
+          key: a,
+          label: ATTRIBUTE_LABELS[a],
+          href: hrefFor({ series: a }),
+          active: series === a,
+        })),
+      }));
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <Link
@@ -69,54 +93,33 @@ export default async function PlayerHistoryPage({
         How {player.firstName} {player.lastName}&apos;s community-voted score has moved over time.
       </p>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1" role="group" aria-label="Which score to chart">
-          <Link
-            href={hrefFor({ series: "overall" })}
-            className={pillClass(series === "overall")}
-          >
-            Overall
-          </Link>
-          {coreAttrs.map((a) => (
-            <Link key={a} href={hrefFor({ series: a })} className={pillClass(series === a)}>
-              {ATTRIBUTE_LABELS[a]}
-            </Link>
-          ))}
-          {BOOSTER_ATTRIBUTES.map((b) => (
-            <Link key={b} href={hrefFor({ series: b })} className={pillClass(series === b)}>
-              {BOOSTER_ATTRIBUTE_LABELS[b]}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex shrink-0 rounded-full border border-[var(--color-border)] p-0.5">
-          {GRANULARITIES.map((g) => (
-            <Link
-              key={g.key}
-              href={hrefFor({ granularity: g.key })}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                granularity === g.key
-                  ? "bg-[var(--color-fg)] text-[var(--color-bg)]"
-                  : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
-              }`}
-            >
-              {g.label}
-            </Link>
-          ))}
-        </div>
+      <div className="mt-6">
+        <SeriesPicker
+          overall={{ key: "overall", label: "Overall", href: hrefFor({ series: "overall" }), active: series === "overall" }}
+          groups={groups}
+        />
       </div>
 
       <div className="mt-4">
         <RatingHistoryChart data={data} label={seriesLabel} />
       </div>
+
+      <div className="mt-4 flex shrink-0 rounded-none border-2 border-[var(--color-border-strong)] p-0.5" style={{ width: "fit-content" }}>
+        {GRANULARITIES.map((g) => (
+          <Link
+            key={g.key}
+            href={hrefFor({ granularity: g.key })}
+            scroll={false}
+            className={`rounded-none px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wide transition-colors ${
+              granularity === g.key
+                ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+                : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+            }`}
+          >
+            {g.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
-}
-
-function pillClass(active: boolean) {
-  return `rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-    active
-      ? "border-[var(--color-fg)] bg-[var(--color-fg)] text-[var(--color-bg)]"
-      : "border-[var(--color-border)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
-  }`;
 }

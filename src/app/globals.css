@@ -3,64 +3,151 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Neutral grayscale shell — light mode (spec section 9: base UI is
-     black & white; color only enters via team-context accents). */
-  --color-bg: #ffffff;
+  /* Functional shell, light mode — a crisp off-white, still a clean data
+     product first, but every neutral here carries a faint teal tint
+     instead of being hue-less gray, so the shell reads as the same
+     palette family as the teal accent, the dark-mode sky, and the
+     reference mood board rather than a neutral shell with an accent
+     bolted on. */
+  --color-bg: #f1f6f4;
   --color-bg-elevated: #ffffff;
-  --color-bg-subtle: #f4f4f5;
-  --color-fg: #18181b;
-  --color-fg-muted: #52525b;
-  --color-fg-faint: #a1a1aa;
-  --color-border: #e4e4e7;
-  --color-border-strong: #d4d4d8;
+  --color-bg-subtle: #e6efec;
+  --color-fg: #10201d;
+  --color-fg-muted: #4c625d;
+  --color-fg-faint: #83968f;
+  --color-border: #d7e5e0;
+  --color-border-strong: #bdd1ca;
   --color-card: #ffffff;
 
   /* Semantic vote colors — always meaningful, never decorative. */
-  --color-positive: #16a34a;
-  --color-positive-light: #a3e635; /* yellow-green start of the magnitude gradient */
+  --color-positive: #157a3d;
+  --color-positive-light: #74a319; /* yellow-green start of the magnitude gradient */
   --color-positive-fg: #ffffff;
-  --color-negative: #dc2626;
-  --color-negative-light: #fb923c; /* orange start of the magnitude gradient */
+  --color-negative: #b6301f;
+  --color-negative-light: #d9600f; /* orange start of the magnitude gradient */
   --color-negative-fg: #ffffff;
-  --color-empty: #d4d4d8;
+  --color-empty: #e2e6ea;
 
-  --color-ring: #18181b;
+  --color-ring: #4fc3ea;
+
+  /* Attribute-category accent colors — these identify *which* category a
+     bar belongs to (Offense blue, Defense purple), not vote direction, so
+     unlike the semantic vote colors above they stay the same hue whether
+     the underlying value is positive or negative. General and Booster are
+     deliberately NOT included here — they use the plain vote colors, same
+     as Overall, since a distinct color for them read as a near-duplicate
+     of the Overall bar right above them.
+
+     The "light" stop of each gradient is hue-shifted ~20-25° away from its
+     saturated endpoint (sky-toward-blue, fuchsia-toward-purple) rather than
+     just a paler tint of the same hue — matching how the vote gradients
+     shift yellow-green→green and orange→red instead of staying monochrome,
+     so these read as the same family of gradient, not a flatter one. */
+  --color-cat-offense: #1d4ed8;
+  --color-cat-offense-light: #0891b2;
+  --color-cat-defense: #7e22ce;
+  --color-cat-defense-light: #c026d3;
 
   /* Team accent — overridden per-page/component with inline style vars
      when a team context is present (spec section 9). Defaults to neutral
      so components never accidentally render "colorful" without context. */
-  --team-primary: #52525b;
-  --team-secondary: #27272a;
+  --team-primary: #4c625d;
+  --team-secondary: #22322e;
   --team-primary-fg: #ffffff;
 
-  --font-display: var(--font-barlow-condensed), "Arial Narrow", sans-serif;
+  /* Brand accents — the redesign's retro layer, used deliberately rather
+     than everywhere. Blue (drawn from the uploaded mint→sky→royal→navy
+     swatch) is the primary interactive/brand color (buttons, active nav,
+     focus ring, links) — chosen specifically because a blue family sits
+     near-complementary to the logo's saturated red and reads as a
+     deliberate "team colors" pairing rather than a clash. Kept identical
+     to dark mode's sky-blue rather than the swatch's darker royal-blue
+     half, so both themes share one brand accent instead of two. Amber is
+     a secondary highlight reserved for rank #1 / featured chips so it
+     never competes with blue for "primary action" attention. */
+  --color-accent: #4fc3ea;
+  --color-accent-strong: #b3f0ea;
+  --color-accent-fg: #0a1a2e;
+  --color-accent-2: #b45309;
+  --color-accent-2-fg: #ffffff;
+
+  /* The sky-blue --color-accent reads fine as a *fill* (paired with the
+     dark --color-accent-fg above) but is too light for comfortable *text*
+     straight on this light background — so anywhere accent color is used
+     as plain text/an icon rather than a filled pill, it reads through
+     these two instead. They're darker *shades of the same cyan hue* as
+     --color-accent (not a separate royal-blue), so accent text reads as
+     the same blue as the rest of the UI, just deep enough to stay legible
+     on white. Dark mode doesn't need the distinction (the bright accent
+     already reads fine as text on a dark surface), so there they just
+     equal --color-accent/-strong directly — see below. */
+  --color-accent-text: #146d8a;
+  --color-accent-text-strong: #0c4a5e;
+
+  --color-pixel-shadow: rgba(18, 21, 26, 0.18);
+  /* White, matching dark mode — reads against the accent-teal wash near
+     the top of the hero and settles into the plain background lower down,
+     rather than the near-invisible dark stipple this replaced. */
+  --color-starfield-dot: rgba(255, 255, 255, 0.9);
+
+  /* The whole site's type — Jersey 10, a sports-jersey-lettering face
+     (blocky/retro, but built to read as words and numbers). Applied on
+     `body` so every piece of text and every number inherits it.
+     --font-body (Barlow) is kept only as an escape-hatch `font-body`
+     utility; nothing uses it. */
+  --font-display: var(--font-jersey), var(--font-barlow-condensed), sans-serif;
   --font-body: var(--font-barlow), "Helvetica Neue", Arial, sans-serif;
 }
 
 .dark {
-  --color-bg: #09090b;
-  --color-bg-elevated: #18181b;
-  --color-bg-subtle: #18181b;
-  --color-fg: #fafafa;
-  --color-fg-muted: #a1a1aa;
-  --color-fg-faint: #71717a;
-  --color-border: #27272a;
-  --color-border-strong: #3f3f46;
-  --color-card: #18181b;
+  /* Teal-tinted near-black — still a calm, professional dark surface
+     (closer to a well-made dark-mode tool than an arcade cabinet), but
+     drawn from the same cohesive teal/navy family as the hero's night sky
+     and the mood-board reference, instead of a hue-less neutral charcoal
+     with the accent bolted on separately. */
+  --color-bg: #0a1518;
+  --color-bg-elevated: #12232a;
+  --color-bg-subtle: #12232a;
+  --color-fg: #e8f3f0;
+  --color-fg-muted: #8fa8a3;
+  --color-fg-faint: #4f6663;
+  --color-border: #1c2e33;
+  --color-border-strong: #2a4247;
+  --color-card: #0e1c20;
 
-  --color-positive: #22c55e;
+  --color-positive: #34d399;
   --color-positive-light: #bef264;
   --color-positive-fg: #052e16;
-  --color-negative: #f87171;
+  --color-negative: #fb5a5a;
   --color-negative-light: #fdba74;
   --color-negative-fg: #450a0a;
-  --color-empty: #3f3f46;
+  --color-empty: #232a2e;
 
-  --color-ring: #fafafa;
+  --color-ring: #4fc3ea;
 
-  --team-primary: #a1a1aa;
-  --team-secondary: #71717a;
-  --team-primary-fg: #09090b;
+  --color-cat-offense: #3b82f6;
+  --color-cat-offense-light: #22d3ee;
+  --color-cat-defense: #c084fc;
+  --color-cat-defense-light: #e879f9;
+
+  --team-primary: #8fa8a3;
+  --team-secondary: #4f6663;
+  --team-primary-fg: #0a1518;
+
+  --color-accent: #4fc3ea;
+  --color-accent-strong: #b3f0ea;
+  --color-accent-fg: #0a1a2e;
+  --color-accent-2: #f59e0b;
+  --color-accent-2-fg: #2b1600;
+  /* Bright-on-dark already reads fine as text, so no separate pair needed
+     here — see the light-mode comment above for why light mode differs. */
+  --color-accent-text: #4fc3ea;
+  --color-accent-text-strong: #b3f0ea;
+
+  --color-pixel-shadow: rgba(0, 0, 0, 0.6);
+  /* Brighter/more opaque than before — a slight emphasis pass on the
+     dark-mode star field. */
+  --color-starfield-dot: rgba(230, 244, 255, 0.85);
 }
 
 @theme inline {
@@ -81,11 +168,46 @@
   --color-negative-fg: var(--color-negative-fg);
   --color-empty: var(--color-empty);
   --color-ring: var(--color-ring);
+  --color-cat-offense: var(--color-cat-offense);
+  --color-cat-offense-light: var(--color-cat-offense-light);
+  --color-cat-defense: var(--color-cat-defense);
+  --color-cat-defense-light: var(--color-cat-defense-light);
   --color-team-primary: var(--team-primary);
   --color-team-secondary: var(--team-secondary);
   --color-team-primary-fg: var(--team-primary-fg);
+  --color-accent: var(--color-accent);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-accent-2: var(--color-accent-2);
+  --color-accent-2-fg: var(--color-accent-2-fg);
+  --color-accent-text: var(--color-accent-text);
+  --color-accent-text-strong: var(--color-accent-text-strong);
   --font-display: var(--font-display);
   --font-body: var(--font-body);
+
+  /* Jersey 10 (the sitewide pixel face) has a smaller apparent size than a
+     normal sans at the same px, so the everyday text sizes read a touch
+     small. Nudge the low end of the scale up ~1px — line-heights are
+     ratios in Tailwind v4, so they track the new sizes automatically.
+     The heading sizes (xl and up) are left at their defaults; they're
+     already large enough. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+
+  /* Corner radii, pixel-tightened. The buttons/toggles/pills are squared
+     off entirely in their own rules; everything else that stays rounded
+     — cards, avatar frames, dropdown panels, row hovers, the search field
+     — collapses to a single small 3px radius here, so a corner still
+     reads as intentionally softened rather than a smooth curve. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
 }
 
 * {
@@ -102,12 +224,33 @@ html.dark {
 body {
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-body);
+  /* Pixel face (Jersey 10) everywhere — every piece of text and every
+     number. --font-body (Barlow) is still defined and exposed as the
+     `font-body` utility as an escape hatch, but nothing uses it now. */
+  font-family: var(--font-display);
+  /* Jersey 10 ships one weight. Without this, the browser synthesizes a
+     fake bold wherever a component applies font-bold/font-semibold —
+     doubling up on a face that's already blocky by design and reading as
+     too heavy. */
+  font-synthesis: none;
+  /* Turn anti-aliasing off so the pixel face renders with hard, un-
+     smoothed edges — actual pixels rather than a soft blocky font. Webkit
+     only; other engines fall back to normal smoothing, which is fine. */
+  -webkit-font-smoothing: none;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   letter-spacing: 0.01em;
+}
+
+/* The page's single biggest piece of type gets a crisp, unblurred offset
+   shadow — the same hard "cartridge" shadow language as .btn-pixel — so it
+   reads as a printed pixel-poster title instead of just a bold heading in
+   a blocky font. No blur anywhere: blur reads as a soft modern drop
+   shadow, not a pixel one. */
+h1 {
+  text-shadow: 2px 2px 0 var(--color-pixel-shadow);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -124,4 +267,255 @@ h1, h2, h3, h4, h5, h6 {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Hero-only layer — a small set of *opt-in* utilities used just on the
+   homepage hero (starfield background, glow, entrance animation, the
+   cartridge button). Everyday UI (nav, buttons, cards, tables, vote rows)
+   intentionally does NOT reach for these. Every utility here reads theme
+   tokens, so light/dark just works, and nothing here changes markup
+   structure or data — purely visual.
+   ------------------------------------------------------------------- */
+
+/* Strong, smooth accent wash — straight top-to-bottom, fading continuously
+   from --color-accent down to plain --color-bg (no hard steps — a genuine
+   gradient, not the posterized band treatment used on the team/player
+   hero banners below). The star field is a set of real elements (see
+   .star below) absolutely positioned inside this container, not part of
+   this background, so each one can move independently. */
+.bg-arcade {
+  position: relative;
+  z-index: 1; /* contains the star field's negative z-index (see
+                 StarField.tsx) so it stays behind this section's own
+                 content without escaping to paint behind the sticky
+                 header or anything else on the page. Must be a positive
+                 value (not 0) — a plain "position:relative" avatar/image
+                 wrapper further down the page (no z-index of its own) is
+                 also a z-index:0 stacking context, and same-level contexts
+                 are ordered by DOM position, so at 0 this section would
+                 lose to anything positioned later on the page, trapping
+                 the hero search dropdown behind it. */
+  /* No overflow:hidden here — StarField clips itself, and this section
+     hosts the search bar's dropdown, which needs to overflow past the
+     hero's bottom edge without being cut off. */
+  background-color: var(--color-bg);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent) 92%, var(--color-bg)) 0%,
+    var(--color-bg) 90%
+  );
+}
+
+/* One star. Position/size/timing all come in via inline custom properties
+   (--x, --y, --size, --drift-dur, --drift-delay — see StarField.tsx). Every
+   star travels the same left-to-right line at constant speed (linear, one
+   direction, never reversing) but at its own duration, so they don't move
+   in lockstep. --x starts each star just off the left edge and the
+   keyframe carries it to 120vw (well past the right edge of this
+   full-bleed section on any screen size); a negative --drift-delay per
+   star fast-forwards it into the middle of that run immediately on load,
+   so the field starts already populated instead of empty until the first
+   star arrives. Both the "reset" (100%→0%) and the negative-delay start
+   happen while the star is off-screen, so the loop has no visible seam.
+   All six longhand animation-* properties are set explicitly here (rather
+   than the `animation` shorthand) so .star--sparkle below can reliably
+   override just animation-name/-duration/-delay without any
+   shorthand-vs-longhand cascade surprises. */
+.star {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--color-starfield-dot);
+  pointer-events: none;
+  animation-name: star-drift;
+  animation-duration: var(--drift-dur, 8s);
+  animation-timing-function: linear;
+  animation-delay: var(--drift-delay, 0s);
+  animation-iteration-count: infinite;
+  animation-direction: normal;
+}
+
+@keyframes star-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(120vw); }
+}
+
+/* Applied to roughly half the stars — an occasional brightness flare
+   layered on top of the drift (a different property, so the two
+   animations don't fight over `transform`), timed per-star between 8s and
+   20s via --sparkle-dur/--sparkle-delay so they never sync up. */
+.star--sparkle {
+  animation-name: star-drift, star-sparkle;
+  animation-duration: var(--drift-dur, 8s), var(--sparkle-dur, 12s);
+  animation-timing-function: linear, ease-in-out;
+  animation-delay: var(--drift-delay, 0s), var(--sparkle-delay, 0s);
+  animation-iteration-count: infinite, infinite;
+  animation-direction: normal, normal;
+}
+
+@keyframes star-sparkle {
+  0%, 88%, 100% { filter: brightness(1); opacity: 1; }
+  94% { filter: brightness(2.4); opacity: 1; }
+}
+
+/* Cartridge button feel: hard square corners, a solid pixel offset shadow
+   that flattens on press, plus a soft accent glow on hover — the retro
+   "8-bit menu button" read, without losing the label underneath it (the
+   label itself stays on --font-display, which is a *readable* pixel face,
+   not a decorative one). The `border-radius: 0` here (unlayered, so it
+   beats any `rounded-*` utility on the same element) is what makes every
+   pill button on the site square. */
+.btn-pixel {
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 0;
+  box-shadow: 3px 3px 0 0 var(--color-pixel-shadow);
+  transition:
+    transform 120ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+.btn-pixel:hover {
+  transform: translate(-1px, -1px);
+  box-shadow:
+    4px 4px 0 0 var(--color-pixel-shadow),
+    0 10px 22px -10px color-mix(in srgb, var(--color-accent) 60%, transparent);
+}
+.btn-pixel:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 var(--color-pixel-shadow);
+}
+
+/* The controls that sit on the team-colour mosaic in a profile hero — the
+   votes count, Favourite, Rating History, Report. Frosted glass: a mostly
+   opaque page surface plus a blur, so the mosaic reads faintly through
+   them (they still feel part of the banner) while text contrast stays
+   consistent on every team's colours and in either theme — instead of
+   fully see-through chips whose legibility swung with the backdrop.
+   `.is-active` is the Favourited state. */
+.btn-hero-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 2px solid color-mix(in srgb, var(--color-border-strong) 60%, transparent);
+  border-radius: 0;
+  /* Frosted glass: mostly see-through, so the mosaic reads clearly
+     through the chip, with a strong blur that flattens whatever colour
+     is behind it into a soft even field — that's what keeps the text
+     legible on every team and in either theme. */
+  background-color: color-mix(in srgb, var(--color-card) 36%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  color: var(--color-fg);
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+/* Only the interactive chips (Favourite / Rating History / Report) react
+   to hover — the votes count is a plain <span>, so it keeps the resting
+   border and never looks clickable. */
+a.btn-hero-chip:hover,
+button.btn-hero-chip:hover {
+  border-color: var(--color-accent);
+}
+.btn-hero-chip.is-active,
+.btn-hero-chip.is-active:hover {
+  border-color: var(--color-accent-2);
+  color: var(--color-accent-2);
+}
+
+/* Panels/cards that want the full "quest window" treatment — a heavier
+   border and hard square corners (no radius at all) instead of a smooth
+   curve. Sharp corners read as unambiguously "pixel" without the
+   stair-step clip-path this replaced, which could look like the corner
+   was randomly cut off rather than deliberately framed. Used sparingly
+   (the homepage boards), not on every card sitewide. */
+.panel-pixel {
+  border-width: 3px;
+  border-style: solid;
+  border-color: var(--color-border-strong);
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Team-accent banners — the player/team profile heroes. The mosaic
+   gradient itself is a grid of flat-coloured cells rendered by
+   <TeamPixelMosaic> (each cell its own value, stepping primary→secondary
+   corner to corner); this class just lays down the --color-bg-subtle
+   floor the mosaic is knocked back over so it stays soft and
+   theme-aware. --team-primary/--team-secondary (set inline per page via
+   teamAccentStyle()) still drive the avatar border and the accent rule.
+   ------------------------------------------------------------------- */
+.bg-team-pixel {
+  background-color: var(--color-bg-subtle);
+}
+
+/* The thin accent rule under a team banner — a true smooth primary→
+   secondary gradient, blended in OKLab so it stays coherent (no grey mud)
+   the same way the mosaic above does. */
+.bg-team-pixel-bar {
+  background-image: linear-gradient(90deg in oklab, var(--team-primary), var(--team-secondary));
+}
+
+.text-glow-accent {
+  text-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+/* Same glow, for the logo image — text-shadow has no effect on a raster
+   image, so this uses drop-shadow instead (glows around the logo's own
+   non-transparent pixels rather than the image's rectangular box). */
+.img-glow-accent {
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--color-accent) 40%, transparent));
+}
+
+@keyframes pixel-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(26px) scale(0.965);
+  }
+  60% {
+    opacity: 1;
+  }
+  82% {
+    /* a whisper of overshoot past the resting position */
+    transform: translateY(-2px) scale(1.004);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-pixel-rise {
+  animation: pixel-rise 720ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+}
+
+/* Hero logo shine sweep (see AnimatedLogo.tsx). The "lit" rendition
+   (stat-padder-2, absolutely positioned over the base stat-padder-1) is
+   clipped to a hard-edged vertical band that travels left-to-right across
+   the whole image once — hard edges rather than a soft/blurred gradient
+   to match the pixel-art rendering instead of reading as an anti-aliased
+   glare. The band starts and ends fully outside the 0-100% box (negative
+   and >100% coordinates are valid in clip-path — they just place that part
+   of the shape off the visible element), so it's invisible before it
+   enters and after it exits; `forwards` freezes on that final, invisible,
+   off-screen-right state rather than snapping back. */
+.shine-sweep {
+  clip-path: polygon(-32% 0%, -6% 0%, -6% 100%, -32% 100%);
+  animation: shine-sweep 900ms ease-in-out;
+  animation-fill-mode: forwards;
+}
+@keyframes shine-sweep {
+  from { clip-path: polygon(-32% 0%, -6% 0%, -6% 100%, -32% 100%); }
+  to { clip-path: polygon(106% 0%, 132% 0%, 132% 100%, 106% 100%); }
 }

@@ -33,6 +33,15 @@ export type NhlStandingsTeam = {
   losses: number;
   otLosses: number;
   points: number;
+  /** The NHL's own standings position within each scope — already tiebroken. */
+  leagueSequence: number;
+  conferenceSequence: number;
+  divisionSequence: number;
+  streakCode?: string; // "W" | "L" | "OT"
+  streakCount?: number;
+  l10Wins?: number;
+  l10Losses?: number;
+  l10OtLosses?: number;
 };
 
 export async function getStandingsNow(revalidateSeconds = 3600) {
@@ -132,6 +141,7 @@ export type NhlPlayerLanding = {
   currentTeamAbbrev?: string;
   position: string;
   headshot: string;
+  sweaterNumber?: number;
   heightInInches: number;
   weightInPounds: number;
   birthDate: string;
@@ -177,8 +187,12 @@ function encodeSort(sort: StatSortKey[]): string {
 // silently combines regular season + playoff rows into one, which inflates
 // gamesPlayed (and every counting stat) well past the ~82-game season max
 // for teams with deep playoff runs.
-function regularSeasonExp(seasonId: number): string {
-  return encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2`);
+// `since` ("YYYY-MM-DD") narrows the aggregate to games on or after that date —
+// the stats API honours `gameDate` inside the cayenne expression, so week/month
+// point totals come back in one query instead of per-player game logs.
+function regularSeasonExp(seasonId: number, since?: string): string {
+  const base = `seasonId=${seasonId} and gameTypeId=2`;
+  return encodeURIComponent(since ? `${base} and gameDate>="${since}"` : base);
 }
 
 export async function getSkaterSummary(
@@ -186,12 +200,27 @@ export async function getSkaterSummary(
   {
     limit = 100,
     start = 0,
+    since,
     sort = [{ property: "points", direction: "DESC" }, { property: "goals", direction: "DESC" }],
-  }: { limit?: number; start?: number; sort?: StatSortKey[] } = {}
+  }: { limit?: number; start?: number; since?: string; sort?: StatSortKey[] } = {}
 ) {
-  const url = `${STATS_API}/skater/summary?limit=${limit}&start=${start}&sort=${encodeSort(sort)}&cayenneExp=${regularSeasonExp(seasonId)}`;
+  const url = `${STATS_API}/skater/summary?limit=${limit}&start=${start}&sort=${encodeSort(sort)}&cayenneExp=${regularSeasonExp(seasonId, since)}`;
   const data = await getJson<{ data: NhlSkaterSummaryRow[]; total: number }>(url, 3600);
   return data;
+}
+
+/** Every skater's summary row (the API caps each page at 100), optionally windowed by `since`. */
+export async function getSkaterSummaryAll(
+  seasonId: number,
+  { since }: { since?: string } = {}
+): Promise<NhlSkaterSummaryRow[]> {
+  const rows: NhlSkaterSummaryRow[] = [];
+  for (let start = 0; start < 2000; start += 100) {
+    const { data } = await getSkaterSummary(seasonId, { limit: 100, start, since });
+    rows.push(...data);
+    if (data.length < 100) break;
+  }
+  return rows;
 }
 
 export type NhlGoalieSummaryRow = {
@@ -217,5 +246,56 @@ export async function getGoalieSummary(
 ) {
   const url = `${STATS_API}/goalie/summary?limit=${limit}&start=${start}&sort=${encodeSort(sort)}&cayenneExp=${regularSeasonExp(seasonId)}`;
   const data = await getJson<{ data: NhlGoalieSummaryRow[]; total: number }>(url, 3600);
+  return data;
+}
+
+/**
+ * One row per game the player appeared in, current season. Skater rows carry
+ * goals/assists/points; goalie rows carry decision + shots/goals against.
+ * Used to slice out "this week" totals for the home-page leaderboards.
+ */
+export type NhlPlayerGameLogEntry = {
+  gameId: number;
+  gameDate: string; // "YYYY-MM-DD"
+  teamAbbrev: string;
+  homeRoadFlag: "H" | "R";
+  opponentAbbrev: string;
+  // skater
+  goals?: number;
+  assists?: number;
+  points?: number;
+  shots?: number;
+  // goalie
+  gamesStarted?: number;
+  decision?: "W" | "L" | "O" | null;
+  shotsAgainst?: number;
+  goalsAgainst?: number;
+  savePctg?: number;
+  shutouts?: number;
+};
+
+export async function getPlayerGameLogNow(nhlId: number, revalidateSeconds = 1800) {
+  const data = await getJson<{ seasonId: number; gameTypeId: number; gameLog: NhlPlayerGameLogEntry[] }>(
+    `${WEB_API}/player/${nhlId}/game-log/now`,
+    revalidateSeconds
+  );
+  return data;
+}
+
+export type NhlScheduleGame = {
+  id: number;
+  gameDate: string; // "YYYY-MM-DD"
+  gameType: number; // 2 = regular season, 3 = playoffs
+  gameState: string; // "OFF" | "FINAL" | "FUT" | "LIVE" | ...
+  homeTeam: { abbrev: string; score?: number };
+  awayTeam: { abbrev: string; score?: number };
+  gameOutcome?: { lastPeriodType: "REG" | "OT" | "SO" };
+};
+
+export async function getClubScheduleSeasonNow(teamAbbrev: string, revalidateSeconds = 1800) {
+  const data = await getJson<{ games: NhlScheduleGame[] }>(
+    `${WEB_API}/club-schedule-season/${teamAbbrev}/now`,
+    revalidateSeconds
+  );
   return data;
 }

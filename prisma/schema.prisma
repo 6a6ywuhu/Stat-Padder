@@ -1,18 +1,19 @@
 // Prisma schema for the NHL Player Attribute Voting site.
 //
-// Provider note: this runs on SQLite for local dev because no Postgres
-// instance or Docker daemon was available in the build environment. The
-// schema intentionally avoids any SQLite-only types, so moving to Postgres
-// later is just: change `provider` below to "postgresql", point
-// DATABASE_URL at a real database, and re-run `prisma migrate dev`.
+// Runs on Postgres. `DATABASE_URL` is the pooled connection used by the
+// app at runtime (serverless-friendly); `DIRECT_URL` is a direct,
+// non-pooled connection used only by `prisma migrate` / introspection.
+// On Neon these are the "-pooler" and plain hostnames respectively; for a
+// plain local Postgres, point both at the same URL.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Position {
@@ -70,6 +71,8 @@ model Player {
   birthCountry  String?
   votes         AttributeVote[]
   reports       Report[]
+  favorites     Favorite[]
+  comments      Comment[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -89,12 +92,98 @@ model AttributeVote {
   value       Int      // +1 or -1
   voterToken  String   // cookie/localStorage token — used for the rolling cooldown
   voterHash   String   // sha256(ip + user-agent + salt) — abuse guard only
+  // Set when the voter was signed in. Never surfaced on public player/team
+  // pages (those only ever show aggregate net counts) — only the voter
+  // themselves can see it, via their own account's vote history.
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
 
   @@index([playerId, attribute])
   @@index([voterToken, playerId, attribute])
   @@index([voterHash, createdAt])
   @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+// One row per person who's ever left a player's watchlist star, or a
+// comment — both require an account (unlike voting, which stays anonymous).
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, playerId])
+  @@index([playerId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([playerId, createdAt])
+}
+
+// --- Auth.js (NextAuth v5) models --------------------------------------
+// Standard shape expected by @auth/prisma-adapter. Credentials sign-in
+// (passwordHash) and Google OAuth (via Account) both resolve to one User.
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?
+  image         String?
+  // Only set for email/password accounts; null for Google-only users.
+  passwordHash  String?
+  accounts      Account[]
+  sessions      Session[]
+  votes         AttributeVote[]
+  favorites     Favorite[]
+  comments      Comment[]
+  createdAt     DateTime   @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Report {
