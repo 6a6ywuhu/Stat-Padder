@@ -1,14 +1,19 @@
 import type { NextConfig } from "next";
 
-// /rankings and /team-rankings are now fully static (they ship a snapshot
-// and filter client-side). These remaining pages still read searchParams /
-// dynamic params, so Next renders them per-request and sends
-// `Cache-Control: no-store`. Their output has no per-user content, so tell
-// Netlify's CDN to cache the rendered response per-URL for a short window
-// and serve stale while it refreshes. `Netlify-CDN-Cache-Control` is read
-// only by Netlify's CDN and stripped before the response reaches the
-// browser, so it doesn't affect Next's own no-store to the client.
-const EDGE_CACHE = "public, durable, s-maxage=120, stale-while-revalidate=600";
+// A few pages read searchParams / dynamic params, so Next renders them
+// per-request and sends `Cache-Control: no-store` to the browser. Their
+// output has no per-user content, so also tell the CDN to hold the
+// rendered response per-URL for a short window and serve stale while it
+// refreshes. `CDN-Cache-Control` is the standard header (Vercel);
+// `Netlify-CDN-Cache-Control` is the Netlify equivalent. Both are
+// CDN-only and don't affect Next's no-store to the client.
+const EDGE_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
+const NETLIFY_EDGE_CACHE = "public, durable, s-maxage=120, stale-while-revalidate=600";
+
+const edgeCacheHeaders = [
+  { key: "CDN-Cache-Control", value: EDGE_CACHE },
+  { key: "Netlify-CDN-Cache-Control", value: NETLIFY_EDGE_CACHE },
+];
 
 const nextConfig: NextConfig = {
   images: {
@@ -16,22 +21,12 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      {
-        source: "/player-stats",
-        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
-      },
-      {
-        source: "/teams/:abbrev",
-        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
-      },
-      {
-        // NOT edge-cached: after you vote, a refresh has to show your vote.
-        // The Netlify edge cache isn't reached by revalidateTag(), so any
-        // s-maxage here means the page keeps serving the pre-vote copy for
-        // that long. Left dynamic so a reload is always current.
-        source: "/players/:id/history",
-        headers: [{ key: "Netlify-CDN-Cache-Control", value: EDGE_CACHE }],
-      },
+      { source: "/player-stats", headers: edgeCacheHeaders },
+      { source: "/teams/:abbrev", headers: edgeCacheHeaders },
+      // /players/:id is deliberately NOT here — after you vote, a refresh
+      // has to show your vote, and a CDN hold would keep serving the
+      // pre-vote copy for the window.
+      { source: "/players/:id/history", headers: edgeCacheHeaders },
     ];
   },
 };
