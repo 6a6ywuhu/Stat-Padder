@@ -12,6 +12,7 @@
  * Uses TURSO_DATABASE_URL + TURSO_AUTH_TOKEN when set, otherwise the local
  * file (prisma/dev.db) — same resolution as src/lib/prisma.ts.
  */
+import "dotenv/config";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@libsql/client";

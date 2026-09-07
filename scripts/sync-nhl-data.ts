@@ -2,6 +2,7 @@
  * CLI entry point for the NHL data sync (spec section 12).
  * Usage: npm run sync [TEAM_ABBREV ...]
  */
+import "dotenv/config";
 import { runSync } from "../src/lib/sync-nhl-data";
 import { prisma } from "../src/lib/prisma";
 

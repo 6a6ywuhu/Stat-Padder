@@ -16,6 +16,7 @@
  * TURSO_AUTH_TOKEN, else the local file. Skips any vote whose player can't
  * be matched, and any vote id already present (safe to re-run).
  */
+import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { createClient } from "@libsql/client";
 
