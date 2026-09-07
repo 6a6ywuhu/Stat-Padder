@@ -13,7 +13,7 @@ function AttrCell({ attribute, bar }: { attribute: Attribute; bar: AttributeBar 
         <span className="truncate">{ATTRIBUTE_LABELS[attribute]}</span>
         <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
           {bar && bar.net > 0 ? "+" : ""}
-          {(bar?.net ?? 0).toFixed(1)}
+          {bar?.net ?? 0}
         </span>
       </div>
       <NetBarTrack direction={bar?.direction ?? "zero"} pct={bar?.pct ?? 0} height="h-1" />

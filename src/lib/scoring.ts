@@ -8,84 +8,83 @@ import {
   Position,
 } from "./attributes";
 
-/**
- * Per-attribute vote tally. Each vote carries a value of ±1 or ±5; `sum`
- * is their total and `total` the count, so the displayed
- * score for an attribute is the plain mean `sum / total` (0 when nobody
- * has voted). `pos` / `neg` / `zero` are just the counts by sign, kept for
- * the "X up / Y down" caption.
- */
-export type VoteCounts = { pos: number; neg: number; zero: number; sum: number; total: number };
+export type VoteCounts = { pos: number; neg: number };
 export type PlayerVoteMap = Record<string, VoteCounts>; // keyed by attribute
-
-export const EMPTY_COUNTS: VoteCounts = { pos: 0, neg: 0, zero: 0, sum: 0, total: 0 };
 
 export function emptyVoteMap(attributes: Attribute[]): PlayerVoteMap {
   const map: PlayerVoteMap = {};
-  for (const a of attributes) map[a] = { ...EMPTY_COUNTS };
+  for (const a of attributes) map[a] = { pos: 0, neg: 0 };
   return map;
 }
 
-/** Mean vote value for one attribute, in [−5, 5]. */
-export function meanScore(counts: VoteCounts | undefined): number {
-  if (!counts || counts.total === 0) return 0;
-  return counts.sum / counts.total;
+export function netScore(counts: VoteCounts | undefined): number {
+  if (!counts) return 0;
+  return counts.pos - counts.neg;
 }
 
-/** Total votes cast across every attribute in the map. */
 export function totalVotes(voteMap: PlayerVoteMap): number {
-  return Object.values(voteMap).reduce((sum, c) => sum + c.total, 0);
+  return Object.values(voteMap).reduce((sum, c) => sum + c.pos + c.neg, 0);
 }
 
-/** Overall = mean of the position's attribute means, in [−5, 5]. */
+/** Overall = average of the position's attribute net scores (positive - negative). */
 export function overallScore(voteMap: PlayerVoteMap, position: Position): number {
   const attrs = attributesForPosition(position);
-  const total = attrs.reduce((sum, a) => sum + meanScore(voteMap[a]), 0);
+  const total = attrs.reduce((sum, a) => sum + netScore(voteMap[a]), 0);
   return attrs.length ? total / attrs.length : 0;
 }
 
-/** A skater category's score (General/Offense/Defense) = mean of that
- *  category's 3 attribute means. Same idea as overallScore, narrower scope. */
+/**
+ * A skater category's score (General/Offense/Defense) = average of
+ * that category's 3 attribute net scores — same idea as overallScore, just
+ * scoped to one category instead of all 9. These still all roll into
+ * Overall the normal way; this is a second, narrower average alongside it,
+ * not a replacement track (unlike boosters, which never feed Overall).
+ */
 export function categoryScore(voteMap: PlayerVoteMap, attrs: Attribute[]): number {
   if (attrs.length === 0) return 0;
-  const total = attrs.reduce((sum, a) => sum + meanScore(voteMap[a]), 0);
+  const total = attrs.reduce((sum, a) => sum + netScore(voteMap[a]), 0);
   return total / attrs.length;
 }
 
-/** Mean of the booster (Potential/Leadership) means. */
+/** Average of the booster (Potential/Leadership) net scores. */
 export function boosterScore(voteMap: PlayerVoteMap): number {
-  const total = BOOSTER_ATTRIBUTES.reduce((sum, b) => sum + meanScore(voteMap[b]), 0);
+  const total = BOOSTER_ATTRIBUTES.reduce((sum, b) => sum + netScore(voteMap[b]), 0);
   return BOOSTER_ATTRIBUTES.length ? total / BOOSTER_ATTRIBUTES.length : 0;
 }
 
 export type Direction = "positive" | "negative" | "zero";
 
-/** Votes run −5 … +5 (poor / strong-poor / strong-good / good), so a mean
- *  of ±5 is a full bar. */
-export const RATING_SCALE = 5;
-
+/**
+ * A single up/down votes cancel out into one net bar — an upvote and a
+ * downvote offset each other, and both directions share the same scale
+ * (this attribute's own net range across the group), rather than each
+ * color being sized against its own separate max.
+ */
 export type AttributeBar = {
   direction: Direction;
-  pct: number; // 0-100, = |mean| / RATING_SCALE * 100
+  pct: number; // 0-100
   positiveVotes: number;
   negativeVotes: number;
-  votes: number; // total votes on this attribute
-  net: number; // the mean vote value, −5 … +5 (kept the name for callers)
+  net: number;
 };
 
 export type OverallBar = {
   direction: Direction;
   pct: number; // 0-100
-  value: number; // −5 … +5
+  value: number;
 };
 
-/** Maps a score in [−RATING_SCALE, RATING_SCALE] to a direction + an
- *  absolute bar width: ±5 is a full bar, ±2.5 half. Not relative to the
- *  rest of the group. */
-export function directionAndPct(value: number): { direction: Direction; pct: number } {
-  const pct = Math.max(0, Math.min(100, Math.round((Math.abs(value) / RATING_SCALE) * 1000) / 10));
-  if (value > 0) return { direction: "positive", pct };
-  if (value < 0) return { direction: "negative", pct };
+export function directionAndPct(value: number, maxPositive: number, mostNegative: number): { direction: Direction; pct: number } {
+  // Round pct to 0.1 — a bar is ~200px wide so finer precision is invisible,
+  // and full-precision floats (17 chars each, thousands of them) bloat the
+  // serialised group-score payload.
+  const r = (n: number) => Math.round(n * 10) / 10;
+  if (value > 0) {
+    return { direction: "positive", pct: maxPositive > 0 ? r((value / maxPositive) * 100) : 0 };
+  }
+  if (value < 0) {
+    return { direction: "negative", pct: mostNegative < 0 ? r((value / mostNegative) * 100) : 0 };
+  }
   return { direction: "zero", pct: 0 };
 }
 
@@ -104,27 +103,11 @@ export type ScoredPlayer<T> = {
   totalVotes: number;
 };
 
-function barFor(counts: VoteCounts | undefined): AttributeBar {
-  const c = counts ?? EMPTY_COUNTS;
-  const mean = meanScore(c);
-  return {
-    ...directionAndPct(mean),
-    positiveVotes: c.pos,
-    negativeVotes: c.neg,
-    votes: c.total,
-    net: Math.round(mean * 100) / 100,
-  };
-}
-
-function overallBarFor(value: number): OverallBar {
-  return { ...directionAndPct(value), value: Math.round(value * 100) / 100 };
-}
-
 /**
- * Scores every player in a comparison group. Each bar is an absolute read
- * of that player's mean vote — the group is passed in only so callers get
- * one call per pool (rankings) or per player (profile), not because scores
- * depend on the other members any more.
+ * Computes per-attribute and overall bars for every player in a comparison
+ * group, scaled relative to the max within that same group (per spec
+ * section 4). Callers pass in whichever group is currently active — either
+ * the player's own position, or a cross-position filtered set.
  */
 export function computeGroupScores<T extends { id: string }>(
   entries: { player: T; voteMap: PlayerVoteMap; position: Position }[]
@@ -132,36 +115,142 @@ export function computeGroupScores<T extends { id: string }>(
   if (entries.length === 0) return [];
 
   const attrs = attributesForPosition(entries[0].position);
+
+  const maxPositiveNetByAttr: Record<string, number> = {};
+  const mostNegativeNetByAttr: Record<string, number> = {};
+  for (const a of attrs) {
+    maxPositiveNetByAttr[a] = 0;
+    mostNegativeNetByAttr[a] = 0;
+  }
+
+  // Boosters (Potential/Leadership) are scored the same way, but tracked
+  // entirely separately from attrs — they never feed into overallScore.
+  const maxPositiveNetByBooster: Record<string, number> = {};
+  const mostNegativeNetByBooster: Record<string, number> = {};
+  for (const b of BOOSTER_ATTRIBUTES) {
+    maxPositiveNetByBooster[b] = 0;
+    mostNegativeNetByBooster[b] = 0;
+  }
+
+  // Category summaries (General/Offense/Defense) only apply to skaters —
+  // a goalie's voteMap has no "sense"/"strength"/etc, so computing these for
+  // goalies would silently average in a bunch of zeros for attributes they
+  // don't have.
   const isSkaterGroup = !isGoaliePosition(entries[0].position);
+  const maxPositiveByCategory: Partial<Record<AttributeCategory, number>> = {};
+  const mostNegativeByCategory: Partial<Record<AttributeCategory, number>> = {};
+  if (isSkaterGroup) {
+    for (const cat of ATTRIBUTE_CATEGORIES) {
+      maxPositiveByCategory[cat.key] = 0;
+      mostNegativeByCategory[cat.key] = 0;
+    }
+  }
+
+  const overallByPlayer = new Map<string, number>();
+  let maxPositiveOverall = 0;
+  let mostNegativeOverall = 0; // most negative = smallest (closest to -Infinity)
+
+  const categoryByPlayer = new Map<string, Partial<Record<AttributeCategory, number>>>();
+
+  const boosterByPlayer = new Map<string, number>();
+  let maxPositiveBooster = 0;
+  let mostNegativeBooster = 0;
+
+  for (const entry of entries) {
+    for (const a of attrs) {
+      const net = netScore(entry.voteMap[a]);
+      if (net > maxPositiveNetByAttr[a]) maxPositiveNetByAttr[a] = net;
+      if (net < mostNegativeNetByAttr[a]) mostNegativeNetByAttr[a] = net;
+    }
+    for (const b of BOOSTER_ATTRIBUTES) {
+      const net = netScore(entry.voteMap[b]);
+      if (net > maxPositiveNetByBooster[b]) maxPositiveNetByBooster[b] = net;
+      if (net < mostNegativeNetByBooster[b]) mostNegativeNetByBooster[b] = net;
+    }
+    const overall = overallScore(entry.voteMap, entry.position);
+    overallByPlayer.set(entry.player.id, overall);
+    if (overall > maxPositiveOverall) maxPositiveOverall = overall;
+    if (overall < mostNegativeOverall) mostNegativeOverall = overall;
+
+    if (isSkaterGroup) {
+      const perCategory: Partial<Record<AttributeCategory, number>> = {};
+      for (const cat of ATTRIBUTE_CATEGORIES) {
+        const score = categoryScore(entry.voteMap, cat.attributes);
+        perCategory[cat.key] = score;
+        if (score > (maxPositiveByCategory[cat.key] ?? 0)) maxPositiveByCategory[cat.key] = score;
+        if (score < (mostNegativeByCategory[cat.key] ?? 0)) mostNegativeByCategory[cat.key] = score;
+      }
+      categoryByPlayer.set(entry.player.id, perCategory);
+    }
+
+    const booster = boosterScore(entry.voteMap);
+    boosterByPlayer.set(entry.player.id, booster);
+    if (booster > maxPositiveBooster) maxPositiveBooster = booster;
+    if (booster < mostNegativeBooster) mostNegativeBooster = booster;
+  }
 
   return entries.map((entry) => {
     const attributeBars: Record<string, AttributeBar> = {};
-    for (const a of attrs) attributeBars[a] = barFor(entry.voteMap[a]);
+    for (const a of attrs) {
+      const c = entry.voteMap[a] ?? { pos: 0, neg: 0 };
+      const net = netScore(c);
+      attributeBars[a] = {
+        ...directionAndPct(net, maxPositiveNetByAttr[a], mostNegativeNetByAttr[a]),
+        positiveVotes: c.pos,
+        negativeVotes: c.neg,
+        net,
+      };
+    }
 
     const boosterBars: Record<string, AttributeBar> = {};
-    for (const b of BOOSTER_ATTRIBUTES) boosterBars[b] = barFor(entry.voteMap[b]);
+    for (const b of BOOSTER_ATTRIBUTES) {
+      const c = entry.voteMap[b] ?? { pos: 0, neg: 0 };
+      const net = netScore(c);
+      boosterBars[b] = {
+        ...directionAndPct(net, maxPositiveNetByBooster[b], mostNegativeNetByBooster[b]),
+        positiveVotes: c.pos,
+        negativeVotes: c.neg,
+        net,
+      };
+    }
 
-    const overallValue = overallScore(entry.voteMap, entry.position);
+    const overallValue = overallByPlayer.get(entry.player.id) ?? 0;
+    const overall: OverallBar = {
+      ...directionAndPct(overallValue, maxPositiveOverall, mostNegativeOverall),
+      value: Math.round(overallValue * 100) / 100,
+    };
 
     const categoryBars: Partial<Record<AttributeCategory, OverallBar>> = {};
     if (isSkaterGroup) {
+      const perCategory = categoryByPlayer.get(entry.player.id) ?? {};
       for (const cat of ATTRIBUTE_CATEGORIES) {
-        categoryBars[cat.key] = overallBarFor(categoryScore(entry.voteMap, cat.attributes));
+        const value = perCategory[cat.key] ?? 0;
+        categoryBars[cat.key] = {
+          ...directionAndPct(value, maxPositiveByCategory[cat.key] ?? 0, mostNegativeByCategory[cat.key] ?? 0),
+          value: Math.round(value * 100) / 100,
+        };
       }
     }
 
+    const boosterValue = boosterByPlayer.get(entry.player.id) ?? 0;
+    const boosterBar: OverallBar = {
+      ...directionAndPct(boosterValue, maxPositiveBooster, mostNegativeBooster),
+      value: Math.round(boosterValue * 100) / 100,
+    };
+
     return {
       // voteMap is intentionally not carried through — it's raw input the
-      // bars are derived from, and for a cross-position pool it pushed the
-      // scored result past unstable_cache's 2 MB per-entry limit.
+      // bars are derived from, no consumer reads it, and for a
+      // cross-position pool (~700 players) it's what pushed the scored
+      // result past unstable_cache's 2 MB per-entry limit.
       player: entry.player,
       position: entry.position,
       attributeBars,
       boosterBars,
-      overall: overallBarFor(overallValue),
+      overall,
       overallValue,
       categoryBars,
-      boosterBar: overallBarFor(boosterScore(entry.voteMap)),
+      boosterBar,
       totalVotes: totalVotes(entry.voteMap),
     };
   });

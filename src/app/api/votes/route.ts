@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
-import { isKnownVotableAttribute } from "@/lib/attributes";
+import { prisma } from "@/lib/prisma";
+import { isValidVotableAttribute } from "@/lib/attributes";
+import type { Position } from "@/lib/attributes";
 import { voterTokenCookieOptions, readOrCreateVoterToken, voterHash } from "@/lib/voter";
-import { recordVote, checkVoteSpike, VoteValue } from "@/lib/votes";
+import { recordVote, checkVoteSpike } from "@/lib/votes";
 import type { Attribute, BoosterAttribute } from "@/lib/attributes";
 
 const bodySchema = z.object({
   playerId: z.string().min(1),
   attribute: z.string().min(1),
-  value: z.union([z.literal(-5), z.literal(-1), z.literal(1), z.literal(5)]),
+  value: z.union([z.literal(1), z.literal(-1)]),
 });
 
 export async function POST(req: NextRequest) {
@@ -19,20 +21,27 @@ export async function POST(req: NextRequest) {
   }
   const { playerId, attribute, value } = parsed.data;
 
-  if (!isKnownVotableAttribute(attribute)) {
-    return NextResponse.json({ error: "Unknown attribute." }, { status: 400 });
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+    select: { position: true },
+  });
+  if (!player) {
+    return NextResponse.json({ error: "Player not found." }, { status: 404 });
+  }
+  if (!isValidVotableAttribute(attribute, player.position as Position)) {
+    return NextResponse.json(
+      { error: "That attribute doesn't apply to this player's position." },
+      { status: 400 }
+    );
   }
 
   const { token, isNew } = readOrCreateVoterToken(req);
 
-  // One write, nothing else on the blocking path — the DB is a region away,
-  // so the old "look the player up to validate position" round trip was
-  // most of the wait. A forged attribute now just makes a row that scoring
-  // ignores (it only reads a position's known attributes).
+  // Only the write blocks the response.
   await recordVote({
     playerId,
     attribute: attribute as Attribute | BoosterAttribute,
-    value: value as VoteValue,
+    value,
     voterToken: token,
     voterHash: voterHash(req),
   });

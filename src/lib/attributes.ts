@@ -118,19 +118,6 @@ export function isValidVotableAttribute(
   return isValidAttributeForPosition(attribute, position) || isBoosterAttribute(attribute);
 }
 
-const ALL_VOTABLE_ATTRIBUTES: ReadonlySet<string> = new Set<string>([
-  ...SKATER_ATTRIBUTES,
-  ...GOALIE_ATTRIBUTES,
-  ...BOOSTER_ATTRIBUTES,
-]);
-
-/** Position-agnostic check — the client only ever renders a player's own
- *  attributes, so the vote route just needs to reject outright garbage
- *  without spending a DB round trip to look the player's position up. */
-export function isKnownVotableAttribute(attribute: string): attribute is Attribute | BoosterAttribute {
-  return ALL_VOTABLE_ATTRIBUTES.has(attribute);
-}
-
 export const POSITION_LABELS: Record<Position, string> = {
   C: "Center",
   LW: "Left Wing",

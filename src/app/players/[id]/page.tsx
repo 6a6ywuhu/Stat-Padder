@@ -240,10 +240,11 @@ export default async function PlayerProfilePage({
                     playerId={player.id}
                     attribute={a}
                     label={ATTRIBUTE_LABELS[a]}
-                    mean={bar?.net ?? 0}
-                    votes={bar?.votes ?? 0}
+                    direction={bar?.direction ?? "zero"}
+                    pct={bar?.pct ?? 0}
                     positiveVotes={bar?.positiveVotes ?? 0}
                     negativeVotes={bar?.negativeVotes ?? 0}
+                    net={bar?.net ?? 0}
                   />
                 );
               })}
@@ -279,10 +280,11 @@ export default async function PlayerProfilePage({
                           playerId={player.id}
                           attribute={a}
                           label={ATTRIBUTE_LABELS[a]}
-                          mean={bar?.net ?? 0}
-                          votes={bar?.votes ?? 0}
+                          direction={bar?.direction ?? "zero"}
+                          pct={bar?.pct ?? 0}
                           positiveVotes={bar?.positiveVotes ?? 0}
                           negativeVotes={bar?.negativeVotes ?? 0}
+                          net={bar?.net ?? 0}
                           color={cat.key === "general" ? "vote" : cat.key}
                         />
                       );
@@ -311,10 +313,11 @@ export default async function PlayerProfilePage({
                     playerId={player.id}
                     attribute={b}
                     label={BOOSTER_ATTRIBUTE_LABELS[b]}
-                    mean={bar?.net ?? 0}
-                    votes={bar?.votes ?? 0}
+                    direction={bar?.direction ?? "zero"}
+                    pct={bar?.pct ?? 0}
                     positiveVotes={bar?.positiveVotes ?? 0}
                     negativeVotes={bar?.negativeVotes ?? 0}
+                    net={bar?.net ?? 0}
                   />
                 </div>
               );

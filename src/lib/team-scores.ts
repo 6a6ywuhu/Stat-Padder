@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { getVoteMapsForPlayers } from "./votes";
-import { categoryScore, directionAndPct, meanScore, Direction, PlayerVoteMap } from "./scoring";
+import { categoryScore, directionAndPct, netScore, Direction, PlayerVoteMap } from "./scoring";
 import { ATTRIBUTE_CATEGORIES, GOALIE_ATTRIBUTES, Position, SkaterAttribute } from "./attributes";
 import type { Team } from "@prisma/client";
 
@@ -52,7 +52,7 @@ const playerDefenseComposite = (vm: PlayerVoteMap) =>
 
 /** average(all 6 goalie stats) — no General blend; goalies have their own pool. */
 const playerGoalieComposite = (vm: PlayerVoteMap) => {
-  const total = GOALIE_ATTRIBUTES.reduce((sum, a) => sum + meanScore(vm[a]), 0);
+  const total = GOALIE_ATTRIBUTES.reduce((sum, a) => sum + netScore(vm[a]), 0);
   return GOALIE_ATTRIBUTES.length ? total / GOALIE_ATTRIBUTES.length : 0;
 };
 
@@ -158,8 +158,15 @@ export const getTeamRankings: typeof computeTeamRankings = unstable_cache(
   { revalidate: 90 }
 );
 
-/** Direction + fill percentage for one score column — absolute, like the
- *  player bars: a team score of ±2 is a full bar, ±1 half. */
+/**
+ * Direction + fill percentage for one score column, scaled to that column's
+ * own range across every team (same convention as the player rankings bars).
+ */
 export function columnBars(values: (number | null)[]): { direction: Direction; pct: number }[] {
-  return values.map((v) => (v === null ? { direction: "zero", pct: 0 } : directionAndPct(v)));
+  const nums = values.filter((v): v is number => v !== null);
+  const maxPositive = Math.max(0, ...nums);
+  const mostNegative = Math.min(0, ...nums);
+  return values.map((v) =>
+    v === null ? { direction: "zero", pct: 0 } : directionAndPct(v, maxPositive, mostNegative)
+  );
 }
