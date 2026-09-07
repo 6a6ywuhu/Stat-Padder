@@ -108,7 +108,7 @@ export const getScoredGroup: typeof scoreGroupUncached = unstable_cache(
  * for that selector silently fails to cache and recomputes on every view.
  * Caching the single ScoredPlayer instead (a few KB) actually sticks.
  */
-async function scorePlayerUncached(
+export async function scorePlayerUncached(
   playerId: string,
   selector: GroupSelector,
   statuses: PlayerStatus[] = ["ACTIVE", "INJURED"]
@@ -117,6 +117,13 @@ async function scorePlayerUncached(
   return group.find((g) => g.player.id === playerId) ?? null;
 }
 
+/**
+ * The profile page calls `scorePlayerUncached` directly, not this — after
+ * you vote, your reload has to show the vote, and neither the Netlify edge
+ * cache nor (reliably, from a serverless function) `revalidateTag` clears
+ * a cached entry fast enough. Kept for any caller that can tolerate the
+ * 90s window.
+ */
 export const getScoredPlayer: typeof scorePlayerUncached = unstable_cache(
   scorePlayerUncached,
   ["scored-player"],

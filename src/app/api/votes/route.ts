@@ -37,7 +37,6 @@ export async function POST(req: NextRequest) {
 
   const { token, isNew } = readOrCreateVoterToken(req);
 
-  // Only the write blocks the response.
   await recordVote({
     playerId,
     attribute: attribute as Attribute | BoosterAttribute,
@@ -46,15 +45,19 @@ export async function POST(req: NextRequest) {
     voterHash: voterHash(req),
   });
 
-  // Spike check + rankings-cache invalidation run after the response is
-  // flushed, so they never add to the voter's wait.
+  // Drop the cached scores on the request path, not in after() — on
+  // Netlify the function context can be torn down before an after()
+  // callback's revalidation reaches the cache, so the voter's own reload
+  // kept showing the pre-vote page. Costs a few ms; worth it.
+  revalidateTag("rankings", "max");
+
+  // The abuse-guard query is slow and nobody's waiting on it.
   after(async () => {
     try {
       await checkVoteSpike(playerId, attribute as Attribute | BoosterAttribute);
     } catch {
       // best-effort abuse guard
     }
-    revalidateTag("rankings", "max");
   });
 
   const res = NextResponse.json({ ok: true });

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getScoredPlayer } from "@/lib/group-scores";
+import { scorePlayerUncached } from "@/lib/group-scores";
 import {
   attributesForPosition,
   ATTRIBUTE_CATEGORIES,
@@ -51,7 +51,7 @@ export default async function PlayerProfilePage({
   // don't depend on each other — fire them together. The DB is a region
   // away from the function, so a chain of awaits here is the whole cost.
   const [scored, landing, comments] = await Promise.all([
-    getScoredPlayer(
+    scorePlayerUncached(
       player.id,
       isGoalie
         ? { kind: "goalie" }
