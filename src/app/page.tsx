@@ -14,8 +14,9 @@ import {
   WeeklyTeamStats,
 } from "@/lib/weekly";
 
-// Weekly leaderboards drift constantly — don't serve a build-time snapshot.
-export const revalidate = 600;
+// The boards bust immediately on a vote (getWeeklyLeaders is tagged
+// "rankings"); this is just the ceiling for a quiet stretch.
+export const revalidate = 120;
 
 export default async function Home() {
   const { players, teams } = await getWeeklyLeaders();

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "./prisma";
 import { getPlayerGameLogNow, getClubScheduleSeasonNow } from "./nhl-api";
 import { startOfWeek, ymd } from "./time-windows";
@@ -130,7 +131,7 @@ async function weeklyTeamStats(abbrev: string, weekStartYmd: string): Promise<We
  * API. Teams sum the net of their own ACTIVE/INJURED roster. Retired players
  * (and their votes) are excluded, matching the rest of the site.
  */
-export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
+async function computeWeeklyLeaders(): Promise<WeeklyLeaders> {
   const weekStart = startOfWeek();
   const weekStartYmd = ymd(weekStart);
 
@@ -210,3 +211,12 @@ export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
 
   return { players, teams, weekStart: weekStart.toISOString() };
 }
+
+/** Tagged "rankings" so a vote's revalidateTag() refreshes the home-page
+ *  boards immediately — the raw prisma reads inside aren't otherwise tied
+ *  to the page's 10-minute ISR window. The NHL stat annotations ride their
+ *  own fetch cache, so a recompute here is cheap. */
+export const getWeeklyLeaders = unstable_cache(computeWeeklyLeaders, ["weekly-leaders"], {
+  revalidate: 300,
+  tags: ["rankings"],
+});
