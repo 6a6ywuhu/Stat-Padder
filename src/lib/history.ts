@@ -28,10 +28,11 @@ function isoWeekKey(date: Date): string {
 }
 
 /**
- * Cumulative-net history for one player, either a single attribute or
- * "overall" (the running average of that position's 6 core attributes —
- * boosters never factor in, same rule as the live Overall score). One
- * point per bucket that actually saw a vote; no gap-filling between them.
+ * Running-mean history for one player, either a single attribute or
+ * "overall" (the mean of that position's core-attribute means — boosters
+ * never factor in, same rule as the live Overall score). Each point is the
+ * cumulative mean of every vote cast up to that bucket; one point per
+ * bucket that actually saw a vote, no gap-filling between them.
  */
 async function computePlayerHistory(
   playerId: string,
@@ -51,17 +52,26 @@ async function computePlayerHistory(
 
   if (votes.length === 0) return [];
 
-  const runningNet = new Map<string, number>();
-  for (const a of attrsToFetch) runningNet.set(a, 0);
+  const runSum = new Map<string, number>();
+  const runCount = new Map<string, number>();
+  for (const a of attrsToFetch) {
+    runSum.set(a, 0);
+    runCount.set(a, 0);
+  }
+  const meanOf = (a: string) => {
+    const c = runCount.get(a) ?? 0;
+    return c ? (runSum.get(a) ?? 0) / c : 0;
+  };
 
   const byBucket = new Map<string, number>();
 
   for (const vote of votes) {
-    runningNet.set(vote.attribute, (runningNet.get(vote.attribute) ?? 0) + vote.value);
+    runSum.set(vote.attribute, (runSum.get(vote.attribute) ?? 0) + vote.value);
+    runCount.set(vote.attribute, (runCount.get(vote.attribute) ?? 0) + 1);
 
     const value = isOverall
-      ? coreAttrs.reduce((sum, a) => sum + (runningNet.get(a) ?? 0), 0) / coreAttrs.length
-      : (runningNet.get(series) ?? 0);
+      ? coreAttrs.reduce((sum, a) => sum + meanOf(a), 0) / coreAttrs.length
+      : meanOf(series);
 
     byBucket.set(bucketKey(vote.createdAt, granularity), value);
   }

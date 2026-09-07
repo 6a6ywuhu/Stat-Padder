@@ -4,29 +4,30 @@ import { useState } from "react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
 import type { Direction } from "@/lib/scoring";
 
-// Inline glyphs instead of `@phosphor-icons/react` — this row mounts 20+
-// times per profile and is the thing users actually click; pulling the
-// icon barrel into it bloated the client chunk and slowed hydration.
-function MinusGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-function PlusGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  );
+type Value = -2 | -1 | 0 | 1 | 2;
+
+const STOPS: { value: Value; label: string; tone: "neg" | "mid" | "pos" }[] = [
+  { value: -2, label: "−−", tone: "neg" },
+  { value: -1, label: "−", tone: "neg" },
+  { value: 0, label: "0", tone: "mid" },
+  { value: 1, label: "+", tone: "pos" },
+  { value: 2, label: "++", tone: "pos" },
+];
+
+function toneClasses(tone: "neg" | "mid" | "pos") {
+  if (tone === "neg")
+    return "border-[var(--color-negative)]/45 text-[var(--color-negative)] hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10";
+  if (tone === "pos")
+    return "border-[var(--color-positive)]/45 text-[var(--color-positive)] hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10";
+  return "border-[var(--color-border-strong)] text-[var(--color-fg-faint)] hover:border-[var(--color-fg-muted)] hover:text-[var(--color-fg-muted)]";
 }
 
 export function PlayerAttributeRow({
   playerId,
   attribute,
   label,
-  pct,
+  mean,
+  votes,
   positiveVotes,
   negativeVotes,
   color,
@@ -34,48 +35,31 @@ export function PlayerAttributeRow({
   playerId: string;
   attribute: string;
   label: string;
-  /** Kept for API compatibility with callers; the bar direction is now
-   *  derived from the live count. */
-  direction?: Direction;
-  pct: number;
+  /** Server mean vote value for this attribute, −2 … +2. */
+  mean: number;
+  /** Server vote count (all values, incl. neutral). */
+  votes: number;
   positiveVotes: number;
   negativeVotes: number;
-  net?: number;
   color?: BarColor;
 }) {
-  // Server counts at mount + votes made here since. The whole interaction
-  // is client-only: the count and bar move the instant you click, and the
-  // POST just persists it in the background. No `router.refresh()` — on
-  // this dynamic page a refresh re-runs auth() + the full cross-position
-  // pool score on cold Neon, and the reconciliation jank was eating the
-  // next click. The exact bar width reconciles on the next real page load.
-  const seedPos = positiveVotes;
-  const seedNeg = negativeVotes;
-  const [optUp, setOptUp] = useState(0);
-  const [optDown, setOptDown] = useState(0);
+  // Fold this session's clicks into the server mean so the bar and number
+  // move the instant you click; the POST just persists in the background.
+  // No router.refresh() — the exact figure reconciles on the next load.
+  const [optSum, setOptSum] = useState(0);
+  const [optCount, setOptCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const pos = seedPos + optUp;
-  const neg = seedNeg + optDown;
-  const net = pos - neg;
+  const liveTotal = votes + optCount;
+  const shownMean = liveTotal > 0 ? (mean * votes + optSum) / liveTotal : 0;
+  const shownDirection: Direction =
+    shownMean > 0.001 ? "positive" : shownMean < -0.001 ? "negative" : "zero";
+  const shownPct = Math.max(0, Math.min(100, (Math.abs(shownMean) / 2) * 100));
 
-  const serverNet = positiveVotes - negativeVotes;
-  const shownDirection: Direction = net > 0 ? "positive" : net < 0 ? "negative" : "zero";
-  // pct is proportional to net within the comparison group, and one vote
-  // doesn't move the group's max — so scaling the server pct by the net
-  // ratio tracks the real bar closely until a full reload reconciles it.
-  const shownPct =
-    net === 0
-      ? 0
-      : serverNet !== 0 && Math.sign(net) === Math.sign(serverNet)
-        ? Math.max(3, Math.min(100, pct * (net / serverNet)))
-        : Math.max(3, Math.min(100, Math.abs(net) * 6));
-
-  async function vote(value: 1 | -1) {
+  async function vote(value: Value) {
     setError(null);
-    if (value === 1) setOptUp((u) => u + 1);
-    else setOptDown((d) => d + 1);
-
+    setOptSum((s) => s + value);
+    setOptCount((c) => c + 1);
     try {
       const res = await fetch("/api/votes", {
         method: "POST",
@@ -85,13 +69,13 @@ export function PlayerAttributeRow({
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(data?.error ?? "Vote failed.");
-        if (value === 1) setOptUp((u) => Math.max(0, u - 1));
-        else setOptDown((d) => Math.max(0, d - 1));
+        setOptSum((s) => s - value);
+        setOptCount((c) => Math.max(0, c - 1));
       }
     } catch {
       setError("Network error — vote not recorded.");
-      if (value === 1) setOptUp((u) => Math.max(0, u - 1));
-      else setOptDown((d) => Math.max(0, d - 1));
+      setOptSum((s) => s - value);
+      setOptCount((c) => Math.max(0, c - 1));
     }
   }
 
@@ -100,27 +84,26 @@ export function PlayerAttributeRow({
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-[var(--color-fg)]">{label}</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold tabular-nums text-[var(--color-fg-muted)]">
-            {net > 0 ? "+" : ""}
-            {net}
+          <span className="w-9 text-right text-xs font-semibold tabular-nums text-[var(--color-fg-muted)]">
+            {shownMean > 0 ? "+" : ""}
+            {shownMean.toFixed(1)}
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label={`Downvote ${label}`}
-              onClick={() => vote(-1)}
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-negative)]/50 text-[var(--color-negative)] transition-all hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10 active:scale-90"
-            >
-              <MinusGlyph />
-            </button>
-            <button
-              type="button"
-              aria-label={`Upvote ${label}`}
-              onClick={() => vote(1)}
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-none border-2 border-[var(--color-positive)]/50 text-[var(--color-positive)] transition-all hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10 active:scale-90"
-            >
-              <PlusGlyph />
-            </button>
+          <div className="flex items-center gap-0.5" role="group" aria-label={`Rate ${label}`}>
+            {STOPS.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                aria-label={`${label}: ${
+                  s.value === 0 ? "average" : s.value > 0 ? "good" : "poor"
+                }${Math.abs(s.value) === 2 ? " (strong)" : ""}`}
+                onClick={() => vote(s.value)}
+                className={`flex h-6 min-w-[1.5rem] cursor-pointer items-center justify-center rounded-none border-2 px-1 text-[11px] font-bold leading-none transition-all active:scale-90 ${toneClasses(
+                  s.tone
+                )}`}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -130,8 +113,9 @@ export function PlayerAttributeRow({
       {error && <p className="mt-1 text-xs text-[var(--color-negative)]">{error}</p>}
 
       <div className="mt-0.5 flex justify-between text-[10px] text-[var(--color-fg-faint)]">
-        <span>{neg} down</span>
-        <span>{pos} up</span>
+        <span>{negativeVotes} low</span>
+        <span>{liveTotal} {liveTotal === 1 ? "vote" : "votes"}</span>
+        <span>{positiveVotes} high</span>
       </div>
     </div>
   );

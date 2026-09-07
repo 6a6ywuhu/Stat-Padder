@@ -20,18 +20,18 @@ const CATEGORY_GRADIENTS: Record<Exclude<BarColor, "vote">, string> = {
  * of the gradient, and a long bar reveals all the way to the deep, fully
  * saturated color — length and color intensity reinforce the same signal
  * instead of length alone carrying it.
+ *
+ * Negative always reads as the yellow→red "bad" gradient, in every
+ * category — the Offense/Defense identity colors only stand in for a
+ * positive value; a negative one is a negative one regardless of column.
  */
 function gradientFor(direction: Direction, color: BarColor): string | undefined {
-  if (color !== "vote") {
-    return direction === "zero" ? undefined : CATEGORY_GRADIENTS[color];
-  }
-  if (direction === "positive") {
-    return "linear-gradient(90deg, var(--color-positive-light), var(--color-positive))";
-  }
+  if (direction === "zero") return undefined;
   if (direction === "negative") {
     return "linear-gradient(90deg, var(--color-negative-light), var(--color-negative))";
   }
-  return undefined;
+  if (color !== "vote") return CATEGORY_GRADIENTS[color];
+  return "linear-gradient(90deg, var(--color-positive-light), var(--color-positive))";
 }
 
 /** Thin dividers every 22px, drawn *under* the color gradient as a second

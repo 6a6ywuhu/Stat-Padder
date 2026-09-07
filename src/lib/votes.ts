@@ -1,6 +1,9 @@
 import { prisma } from "./prisma";
-import { PlayerVoteMap } from "./scoring";
+import { PlayerVoteMap, EMPTY_COUNTS } from "./scoring";
 import { Attribute, BoosterAttribute } from "./attributes";
+
+/** Allowed vote values — the 5-point scale. */
+export type VoteValue = -2 | -1 | 0 | 1 | 2;
 
 /**
  * Vote maps for many players in one query — used by rankings/comparison pages.
@@ -23,9 +26,13 @@ export async function getVoteMapsForPlayers(
 
   for (const row of rows) {
     const map = result[row.playerId] ?? (result[row.playerId] = {});
-    const bucket = map[row.attribute] ?? (map[row.attribute] = { pos: 0, neg: 0 });
-    if (row.value > 0) bucket.pos += row._count._all;
-    else bucket.neg += row._count._all;
+    const bucket = map[row.attribute] ?? (map[row.attribute] = { ...EMPTY_COUNTS });
+    const n = row._count._all;
+    bucket.total += n;
+    bucket.sum += row.value * n;
+    if (row.value > 0) bucket.pos += n;
+    else if (row.value < 0) bucket.neg += n;
+    else bucket.zero += n;
   }
 
   return result;
@@ -46,7 +53,7 @@ const SPIKE_REPORT_COOLDOWN_MS = 60 * 60 * 1000; // don't re-flag the same combo
 export async function recordVote(params: {
   playerId: string;
   attribute: Attribute | BoosterAttribute;
-  value: 1 | -1;
+  value: VoteValue;
   voterToken: string;
   voterHash: string;
 }) {
