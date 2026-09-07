@@ -14,9 +14,11 @@ import {
   WeeklyTeamStats,
 } from "@/lib/weekly";
 
-// Regenerate the home page (and its weekly boards) at most once a minute.
-// getWeeklyLeaders is uncached, so each regen reads live vote totals.
-export const revalidate = 60;
+// Rendered per request. The weekly boards move with every vote and
+// Netlify's ISR wasn't refreshing them on a revalidate window — so the
+// boards sat on stale (pre-Monday) data. getWeeklyLeaders is a couple of
+// indexed queries; the NHL stat lookups inside it keep their fetch cache.
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const { players, teams } = await getWeeklyLeaders();
