@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isValidVotableAttribute } from "@/lib/attributes";
+import type { Position } from "@/lib/attributes";
 import { voterTokenCookieOptions, readOrCreateVoterToken, voterHash } from "@/lib/voter";
 import { recordVote, checkVoteSpike } from "@/lib/votes";
 import type { Attribute, BoosterAttribute } from "@/lib/attributes";
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!player) {
     return NextResponse.json({ error: "Player not found." }, { status: 404 });
   }
-  if (!isValidVotableAttribute(attribute, player.position)) {
+  if (!isValidVotableAttribute(attribute, player.position as Position)) {
     return NextResponse.json(
       { error: "That attribute doesn't apply to this player's position." },
       { status: 400 }

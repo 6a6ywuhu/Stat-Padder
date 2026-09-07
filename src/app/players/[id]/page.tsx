@@ -120,7 +120,7 @@ export default async function PlayerProfilePage({
                 <h1 className="font-display text-3xl font-bold text-[var(--color-fg)] sm:text-4xl">
                   {player.firstName} {player.lastName}
                 </h1>
-                <StatusBadge status={player.status} />
+                <StatusBadge status={player.status as "ACTIVE" | "RETIRED" | "INJURED"} />
               </div>
               <p className="mt-1 text-sm text-[var(--color-fg-muted)]">
                 {POSITION_LABELS[position]}

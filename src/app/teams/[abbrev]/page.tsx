@@ -93,7 +93,7 @@ export default async function TeamPage({ params }: { params: Promise<{ abbrev: s
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         {await Promise.all(
           groups.map(async (group) => {
-            const groupPlayers = players.filter((p) => group.positions.includes(p.position));
+            const groupPlayers = players.filter((p) => group.positions.includes(p.position as Position));
             if (groupPlayers.length === 0) return null;
 
             // Within each section (Forwards/Defense/Goalies), sort by rating
@@ -123,7 +123,7 @@ export default async function TeamPage({ params }: { params: Promise<{ abbrev: s
                       position={p.position}
                       teamId={p.teamId}
                       headshotUrl={p.headshotUrl}
-                      status={p.status}
+                      status={p.status as "ACTIVE" | "RETIRED" | "INJURED"}
                       overall={scored?.overall ?? { direction: "zero", pct: 0, value: 0 }}
                       attributeBars={scored?.attributeBars}
                       categoryBars={scored?.categoryBars}

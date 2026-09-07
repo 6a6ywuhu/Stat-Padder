@@ -3,8 +3,11 @@
 #
 # Runtime env vars are NOT set here — add them in the Netlify UI
 # (Site configuration -> Environment variables):
-#   DATABASE_URL          pooled Postgres connection
-#   DIRECT_URL            direct Postgres connection (used by migrate deploy)
+#   TURSO_DATABASE_URL    libsql://<db>-<org>.turso.io
+#   TURSO_AUTH_TOKEN      `turso db tokens create <db>`
+#   DATABASE_URL          "file:./dev.db" — unused at runtime, but the
+#                         Prisma CLI (prisma generate in postinstall) wants
+#                         a value for the sqlite datasource
 #   AUTH_SECRET           openssl rand -base64 33
 #   AUTH_TRUST_HOST       "true" — required: Auth.js v5 won't trust the
 #                         forwarded host behind Netlify's proxy without it,
@@ -13,10 +16,11 @@
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET   (optional)
 
 [build]
-  # `prisma generate` already runs via the package.json "postinstall"
-  # script on `npm install`. This applies pending migrations to the
-  # production database, then builds.
-  command = "npx prisma migrate deploy && npx next build"
+  # `prisma generate` runs via the package.json "postinstall" script on
+  # `npm install`. Prisma's own `migrate deploy` can't target a remote
+  # libSQL URL, so scripts/migrate-libsql.ts replays the migration SQL
+  # against Turso (using TURSO_DATABASE_URL / TURSO_AUTH_TOKEN), then build.
+  command = "npx tsx scripts/migrate-libsql.ts && npx next build"
 
 [build.environment]
   NODE_VERSION = "22"

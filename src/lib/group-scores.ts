@@ -3,7 +3,7 @@ import { prisma } from "./prisma";
 import { getVoteMapsForPlayers } from "./votes";
 import { computeGroupScores, ScoredPlayer } from "./scoring";
 import { Position, SKATER_POSITIONS, SkaterPosition } from "./attributes";
-import type { PlayerStatus } from "@prisma/client";
+import type { PlayerStatus } from "./db-enums";
 
 /** Only the player/team fields the rankings + profile pages actually read.
  *  Kept deliberately narrow: the full row for a cross-position pool is
@@ -64,10 +64,13 @@ export async function scoreGroupUncached(
   const positions: Position[] = selector.kind === "goalie" ? ["G"] : selector.positions;
   if (positions.length === 0) return [];
 
-  const players = await prisma.player.findMany({
+  // position / status are plain TEXT columns since the move off Postgres
+  // enums, so Prisma types them as `string`; narrow back to the unions the
+  // rest of the code works with.
+  const players = (await prisma.player.findMany({
     where: { position: { in: positions }, status: { in: statuses } },
     select: PLAYER_FIELDS,
-  });
+  })) as PlayerWithTeam[];
 
   const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), opts.since);
 

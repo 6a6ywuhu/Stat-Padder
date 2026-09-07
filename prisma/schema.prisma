@@ -1,44 +1,22 @@
 // Prisma schema for the NHL Player Attribute Voting site.
 //
-// Runs on Postgres. `DATABASE_URL` is the pooled connection used by the
-// app at runtime (serverless-friendly); `DIRECT_URL` is a direct,
-// non-pooled connection used only by `prisma migrate` / introspection.
-// On Neon these are the "-pooler" and plain hostnames respectively; for a
-// plain local Postgres, point both at the same URL.
+// Runs on libSQL / SQLite (Turso in production, a local file in dev) via
+// the `@prisma/adapter-libsql` driver adapter — see src/lib/prisma.ts.
+// `DATABASE_URL` is only read by the Prisma CLI (migrate / studio); the
+// app connects through the adapter using TURSO_DATABASE_URL +
+// TURSO_AUTH_TOKEN, falling back to the local file when those are unset.
+//
+// SQLite has no native enum type, so the former Position / PlayerStatus /
+// ReportType / ReportStatus enums are plain strings here. The allowed
+// values live in the app layer (src/lib/attributes.ts, src/lib/db-enums.ts).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
-enum Position {
-  C
-  LW
-  RW
-  D
-  G
-}
-
-enum PlayerStatus {
-  ACTIVE
-  RETIRED
-  INJURED
-}
-
-enum ReportType {
-  DATA_ISSUE
-  VOTE_SPIKE
-}
-
-enum ReportStatus {
-  OPEN
-  RESOLVED
-  DISMISSED
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Team {
@@ -60,8 +38,8 @@ model Player {
   nhlId         Int           @unique
   firstName     String
   lastName      String
-  position      Position
-  status        PlayerStatus  @default(ACTIVE)
+  position      String        // "C" | "LW" | "RW" | "D" | "G"
+  status        String        @default("ACTIVE") // "ACTIVE" | "RETIRED" | "INJURED"
   teamId        String?
   team          Team?         @relation(fields: [teamId], references: [id])
   headshotUrl   String?
@@ -187,14 +165,14 @@ model VerificationToken {
 }
 
 model Report {
-  id          String       @id @default(cuid())
-  type        ReportType
-  status      ReportStatus @default(OPEN)
+  id          String    @id @default(cuid())
+  type        String    // "DATA_ISSUE" | "VOTE_SPIKE"
+  status      String    @default("OPEN") // "OPEN" | "RESOLVED" | "DISMISSED"
   playerId    String?
-  player      Player?      @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  player      Player?   @relation(fields: [playerId], references: [id], onDelete: SetNull)
   message     String
-  metaJson    String?      // extra context, e.g. spike counts or reporter note
-  createdAt   DateTime     @default(now())
+  metaJson    String?   // extra context, e.g. spike counts or reporter note
+  createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
 
   @@index([status])

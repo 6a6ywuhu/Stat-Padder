@@ -5,7 +5,7 @@
  * our internal player.id, not any synced field. Shared by the CLI script
  * (npm run sync) and the admin "sync now" action.
  */
-import { Position } from "@prisma/client";
+import { Position } from "./db-enums";
 import { prisma } from "./prisma";
 import { getStandingsNow, getRoster, NhlRosterPlayer } from "./nhl-api";
 import { TEAM_COLORS, teamLogoUrl } from "@/data/team-colors";
