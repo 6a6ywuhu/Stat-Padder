@@ -14,9 +14,9 @@ import {
   WeeklyTeamStats,
 } from "@/lib/weekly";
 
-// The boards bust immediately on a vote (getWeeklyLeaders is tagged
-// "rankings"); this is just the ceiling for a quiet stretch.
-export const revalidate = 120;
+// Regenerate the home page (and its weekly boards) at most once a minute.
+// getWeeklyLeaders is uncached, so each regen reads live vote totals.
+export const revalidate = 60;
 
 export default async function Home() {
   const { players, teams } = await getWeeklyLeaders();
