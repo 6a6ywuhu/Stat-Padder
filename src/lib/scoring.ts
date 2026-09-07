@@ -9,8 +9,8 @@ import {
 } from "./attributes";
 
 /**
- * Per-attribute vote tally. Each vote carries a value in the 5-point range
- * −2 … +2; `sum` is their total and `total` the count, so the displayed
+ * Per-attribute vote tally. Each vote carries a value of ±1 or ±5; `sum`
+ * is their total and `total` the count, so the displayed
  * score for an attribute is the plain mean `sum / total` (0 when nobody
  * has voted). `pos` / `neg` / `zero` are just the counts by sign, kept for
  * the "X up / Y down" caption.
@@ -26,7 +26,7 @@ export function emptyVoteMap(attributes: Attribute[]): PlayerVoteMap {
   return map;
 }
 
-/** Mean vote value for one attribute, in [−2, 2]. */
+/** Mean vote value for one attribute, in [−5, 5]. */
 export function meanScore(counts: VoteCounts | undefined): number {
   if (!counts || counts.total === 0) return 0;
   return counts.sum / counts.total;
@@ -37,7 +37,7 @@ export function totalVotes(voteMap: PlayerVoteMap): number {
   return Object.values(voteMap).reduce((sum, c) => sum + c.total, 0);
 }
 
-/** Overall = mean of the position's attribute means, in [−2, 2]. */
+/** Overall = mean of the position's attribute means, in [−5, 5]. */
 export function overallScore(voteMap: PlayerVoteMap, position: Position): number {
   const attrs = attributesForPosition(position);
   const total = attrs.reduce((sum, a) => sum + meanScore(voteMap[a]), 0);
@@ -60,25 +60,30 @@ export function boosterScore(voteMap: PlayerVoteMap): number {
 
 export type Direction = "positive" | "negative" | "zero";
 
+/** Votes run −5 … +5 (poor / strong-poor / strong-good / good), so a mean
+ *  of ±5 is a full bar. */
+export const RATING_SCALE = 5;
+
 export type AttributeBar = {
   direction: Direction;
-  pct: number; // 0-100, = |mean| / 2 * 100
+  pct: number; // 0-100, = |mean| / RATING_SCALE * 100
   positiveVotes: number;
   negativeVotes: number;
-  votes: number; // total votes on this attribute, incl. neutral
-  net: number; // the mean vote value, −2 … +2 (kept the name for callers)
+  votes: number; // total votes on this attribute
+  net: number; // the mean vote value, −5 … +5 (kept the name for callers)
 };
 
 export type OverallBar = {
   direction: Direction;
   pct: number; // 0-100
-  value: number; // −2 … +2
+  value: number; // −5 … +5
 };
 
-/** Maps a score in [−2, 2] to a direction + an absolute bar width: ±2 is a
- *  full bar, ±1 half. No longer relative to the rest of the group. */
+/** Maps a score in [−RATING_SCALE, RATING_SCALE] to a direction + an
+ *  absolute bar width: ±5 is a full bar, ±2.5 half. Not relative to the
+ *  rest of the group. */
 export function directionAndPct(value: number): { direction: Direction; pct: number } {
-  const pct = Math.max(0, Math.min(100, Math.round((Math.abs(value) / 2) * 1000) / 10));
+  const pct = Math.max(0, Math.min(100, Math.round((Math.abs(value) / RATING_SCALE) * 1000) / 10));
   if (value > 0) return { direction: "positive", pct };
   if (value < 0) return { direction: "negative", pct };
   return { direction: "zero", pct: 0 };

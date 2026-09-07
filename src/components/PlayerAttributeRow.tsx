@@ -2,24 +2,21 @@
 
 import { useState } from "react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
-import type { Direction } from "@/lib/scoring";
+import { RATING_SCALE, type Direction } from "@/lib/scoring";
 
-type Value = -2 | -1 | 0 | 1 | 2;
+type Value = -5 | -1 | 1 | 5;
 
-const STOPS: { value: Value; label: string; tone: "neg" | "mid" | "pos" }[] = [
-  { value: -2, label: "−−", tone: "neg" },
-  { value: -1, label: "−", tone: "neg" },
-  { value: 0, label: "0", tone: "mid" },
-  { value: 1, label: "+", tone: "pos" },
-  { value: 2, label: "++", tone: "pos" },
+const STOPS: { value: Value; label: string; tone: "neg" | "pos" }[] = [
+  { value: -5, label: "−5", tone: "neg" },
+  { value: -1, label: "−1", tone: "neg" },
+  { value: 1, label: "+1", tone: "pos" },
+  { value: 5, label: "+5", tone: "pos" },
 ];
 
-function toneClasses(tone: "neg" | "mid" | "pos") {
+function toneClasses(tone: "neg" | "pos") {
   if (tone === "neg")
     return "border-[var(--color-negative)]/45 text-[var(--color-negative)] hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10";
-  if (tone === "pos")
-    return "border-[var(--color-positive)]/45 text-[var(--color-positive)] hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10";
-  return "border-[var(--color-border-strong)] text-[var(--color-fg-faint)] hover:border-[var(--color-fg-muted)] hover:text-[var(--color-fg-muted)]";
+  return "border-[var(--color-positive)]/45 text-[var(--color-positive)] hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10";
 }
 
 export function PlayerAttributeRow({
@@ -35,9 +32,9 @@ export function PlayerAttributeRow({
   playerId: string;
   attribute: string;
   label: string;
-  /** Server mean vote value for this attribute, −2 … +2. */
+  /** Server mean vote value for this attribute, −5 … +5. */
   mean: number;
-  /** Server vote count (all values, incl. neutral). */
+  /** Server vote count. */
   votes: number;
   positiveVotes: number;
   negativeVotes: number;
@@ -54,7 +51,7 @@ export function PlayerAttributeRow({
   const shownMean = liveTotal > 0 ? (mean * votes + optSum) / liveTotal : 0;
   const shownDirection: Direction =
     shownMean > 0.001 ? "positive" : shownMean < -0.001 ? "negative" : "zero";
-  const shownPct = Math.max(0, Math.min(100, (Math.abs(shownMean) / 2) * 100));
+  const shownPct = Math.max(0, Math.min(100, (Math.abs(shownMean) / RATING_SCALE) * 100));
 
   async function vote(value: Value) {
     setError(null);
@@ -80,24 +77,24 @@ export function PlayerAttributeRow({
   }
 
   return (
-    <div className="py-1.5">
-      <div className="mb-1 flex items-center justify-between gap-2">
+    <div className="py-2">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-[var(--color-fg)]">{label}</span>
-        <div className="flex items-center gap-2">
-          <span className="w-9 text-right text-xs font-semibold tabular-nums text-[var(--color-fg-muted)]">
+        <div className="flex items-center gap-2.5">
+          <span className="w-10 text-right text-sm font-semibold tabular-nums text-[var(--color-fg-muted)]">
             {shownMean > 0 ? "+" : ""}
             {shownMean.toFixed(1)}
           </span>
-          <div className="flex items-center gap-0.5" role="group" aria-label={`Rate ${label}`}>
+          <div className="flex items-center gap-1" role="group" aria-label={`Rate ${label}`}>
             {STOPS.map((s) => (
               <button
                 key={s.value}
                 type="button"
                 aria-label={`${label}: ${
-                  s.value === 0 ? "average" : s.value > 0 ? "good" : "poor"
-                }${Math.abs(s.value) === 2 ? " (strong)" : ""}`}
+                  s.value > 0 ? "good" : "poor"
+                }${Math.abs(s.value) === 5 ? " (strong)" : ""}`}
                 onClick={() => vote(s.value)}
-                className={`flex h-6 min-w-[1.5rem] cursor-pointer items-center justify-center rounded-none border-2 px-1 text-[11px] font-bold leading-none transition-all active:scale-90 ${toneClasses(
+                className={`flex h-8 min-w-[2.25rem] cursor-pointer items-center justify-center rounded-none border-2 px-1.5 text-sm font-bold leading-none transition-all active:scale-90 ${toneClasses(
                   s.tone
                 )}`}
               >
@@ -112,9 +109,11 @@ export function PlayerAttributeRow({
 
       {error && <p className="mt-1 text-xs text-[var(--color-negative)]">{error}</p>}
 
-      <div className="mt-0.5 flex justify-between text-[10px] text-[var(--color-fg-faint)]">
+      <div className="mt-1 flex justify-between text-[10px] text-[var(--color-fg-faint)]">
         <span>{negativeVotes} low</span>
-        <span>{liveTotal} {liveTotal === 1 ? "vote" : "votes"}</span>
+        <span>
+          {liveTotal} {liveTotal === 1 ? "vote" : "votes"}
+        </span>
         <span>{positiveVotes} high</span>
       </div>
     </div>

@@ -2,8 +2,8 @@ import { prisma } from "./prisma";
 import { PlayerVoteMap, EMPTY_COUNTS } from "./scoring";
 import { Attribute, BoosterAttribute } from "./attributes";
 
-/** Allowed vote values — the 5-point scale. */
-export type VoteValue = -2 | -1 | 0 | 1 | 2;
+/** Allowed vote values: poor / strong-poor / good / strong-good. */
+export type VoteValue = -5 | -1 | 1 | 5;
 
 /**
  * Vote maps for many players in one query — used by rankings/comparison pages.

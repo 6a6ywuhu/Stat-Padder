@@ -9,13 +9,7 @@ import type { Attribute, BoosterAttribute } from "@/lib/attributes";
 const bodySchema = z.object({
   playerId: z.string().min(1),
   attribute: z.string().min(1),
-  value: z.union([
-    z.literal(-2),
-    z.literal(-1),
-    z.literal(0),
-    z.literal(1),
-    z.literal(2),
-  ]),
+  value: z.union([z.literal(-5), z.literal(-1), z.literal(1), z.literal(5)]),
 });
 
 export async function POST(req: NextRequest) {
