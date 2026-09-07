@@ -62,6 +62,24 @@ function toSnapshotPlayer(s: ScoredPlayer<PlayerWithTeam>, keepAttributeBars = f
   };
 }
 
+/**
+ * Only the top slice of each pool ships with the page. The full active
+ * roster is ~1250 players; the list shows 25 at a time and nobody scrolls
+ * past the voted names into the 0-vote tail, so sending all of them just
+ * bloats the payload (and the parse-on-hydrate) for no one. Pre-sorted
+ * here with the same key the client uses, so the client can skip re-sorting
+ * the default view.
+ */
+const SNAPSHOT_LIMIT = 250;
+
+function rankSort(a: SnapshotPlayer, b: SnapshotPlayer): number {
+  const d = b.overall.value - a.overall.value;
+  if (d !== 0) return d;
+  const v = b.totalVotes - a.totalVotes;
+  if (v !== 0) return v;
+  return (a.teamCity ?? "").localeCompare(b.teamCity ?? "");
+}
+
 async function buildWindow(w: RankWindow): Promise<WindowSnapshot> {
   const since = w === "week" ? startOfWeek() : w === "month" ? startOfMonth() : undefined;
   const sinceYmd = since ? ymd(since) : undefined;
@@ -71,24 +89,28 @@ async function buildWindow(w: RankWindow): Promise<WindowSnapshot> {
     scoreGroupUncached({ kind: "goalie" }, undefined, { since }),
   ]);
 
+  const skaters = skatersScored.map((s) => toSnapshotPlayer(s)).sort(rankSort).slice(0, SNAPSHOT_LIMIT);
+  const goalies = goaliesScored
+    .map((s) => toSnapshotPlayer(s, true))
+    .sort(rankSort)
+    .slice(0, SNAPSHOT_LIMIT);
+
   let stats: WindowStats = {};
   try {
     const seasonId = await getCurrentSeasonId();
     const rows = await getSkaterSummaryAll(seasonId, { since: sinceYmd });
+    // Only the players that actually made the snapshot need a G/A/P entry.
+    const keep = new Set([...skaters, ...goalies].map((p) => p.nhlId));
     stats = Object.fromEntries(
-      rows.map((r) => [r.playerId, { goals: r.goals, assists: r.assists, points: r.points }])
+      rows
+        .filter((r) => keep.has(r.playerId))
+        .map((r) => [r.playerId, { goals: r.goals, assists: r.assists, points: r.points }])
     );
   } catch {
     // best-effort — a failure just hides the G/A/P chip
   }
 
-  return {
-    window: w,
-    skaters: skatersScored.map((s) => toSnapshotPlayer(s)),
-    goalies: goaliesScored.map((s) => toSnapshotPlayer(s, true)),
-    stats,
-    builtAt: new Date().toISOString(),
-  };
+  return { window: w, skaters, goalies, stats, builtAt: new Date().toISOString() };
 }
 
 /** Default window, embedded in the static /rankings page. */
