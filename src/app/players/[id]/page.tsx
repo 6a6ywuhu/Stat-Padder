@@ -27,7 +27,6 @@ import { ReportButton } from "@/components/ReportButton";
 import { BackButton } from "@/components/BackButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { CommentSection } from "@/components/CommentSection";
-import { auth } from "@/lib/auth";
 
 export default async function PlayerProfilePage({
   params,
@@ -42,13 +41,24 @@ export default async function PlayerProfilePage({
   const player = await prisma.player.findUnique({ where: { id }, include: { team: true } });
   if (!player) notFound();
 
-  const session = await auth();
-  const [isFavorited, comments] = await Promise.all([
-    session?.user?.id
-      ? prisma.favorite
-          .findUnique({ where: { userId_playerId: { userId: session.user.id, playerId: id } } })
-          .then((f) => Boolean(f))
-      : Promise.resolve(false),
+  const position = player.position as Position;
+  const isGoalie = position === "G";
+  // Skaters are ranked against every skater position by default; `?cross=0`
+  // narrows the bars back down to this player's own position.
+  const crossPosition = !isGoalie && cross !== "0";
+
+  // Scoring, the NHL stat line, and comments only depend on `player` and
+  // don't depend on each other — fire them together. The DB is a region
+  // away from the function, so a chain of awaits here is the whole cost.
+  const [scored, landing, comments] = await Promise.all([
+    getScoredPlayer(
+      player.id,
+      isGoalie
+        ? { kind: "goalie" }
+        : { kind: "skater", positions: crossPosition ? SKATER_POSITIONS : [position as SkaterPosition] },
+      player.status === "RETIRED" ? ["RETIRED"] : ["ACTIVE", "INJURED"]
+    ),
+    getPlayerLanding(player.nhlId).catch(() => null),
     prisma.comment.findMany({
       where: { playerId: id },
       include: { user: { select: { name: true, email: true, image: true } } },
@@ -57,23 +67,7 @@ export default async function PlayerProfilePage({
     }),
   ]);
 
-  const position = player.position as Position;
-  const isGoalie = position === "G";
-  // Skaters are ranked against every skater position by default; `?cross=0`
-  // narrows the bars back down to this player's own position.
-  const crossPosition = !isGoalie && cross !== "0";
-
-  const scored = await getScoredPlayer(
-    player.id,
-    isGoalie
-      ? { kind: "goalie" }
-      : { kind: "skater", positions: crossPosition ? SKATER_POSITIONS : [position as SkaterPosition] },
-    player.status === "RETIRED" ? ["RETIRED"] : ["ACTIVE", "INJURED"]
-  );
-
   const attrs = attributesForPosition(position);
-
-  const landing = await getPlayerLanding(player.nhlId).catch(() => null);
   const stat = landing?.featuredStats?.regularSeason?.subSeason;
 
   const accent = player.team
@@ -164,7 +158,7 @@ export default async function PlayerProfilePage({
                 </span>
                 votes
               </span>
-              <FavoriteButton playerId={player.id} initialFavorited={isFavorited} />
+              <FavoriteButton playerId={player.id} />
               <Link
                 href={`/players/${player.id}/history`}
                 prefetch={false}

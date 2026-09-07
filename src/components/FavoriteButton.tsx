@@ -2,14 +2,36 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Star } from "@phosphor-icons/react";
 
-export function FavoriteButton({ playerId, initialFavorited }: { playerId: string; initialFavorited: boolean }) {
+export function FavoriteButton({
+  playerId,
+  initialFavorited = false,
+}: {
+  playerId: string;
+  initialFavorited?: boolean;
+}) {
   const { data: session } = useSession();
   const router = useRouter();
   const [favorited, setFavorited] = useState(initialFavorited);
   const [pending, setPending] = useState(false);
+
+  // The profile page is edge-cached and renders no per-user state, so a
+  // signed-in visitor loads their real favourite status here instead.
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    fetch(`/api/favorites?playerId=${encodeURIComponent(playerId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d) setFavorited(Boolean(d.favorited));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user, playerId]);
 
   async function toggle() {
     if (!session) {

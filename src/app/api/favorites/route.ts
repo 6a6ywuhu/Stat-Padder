@@ -5,6 +5,21 @@ import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({ playerId: z.string().min(1) });
 
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ favorited: false });
+
+  const playerId = req.nextUrl.searchParams.get("playerId");
+  if (!playerId) {
+    return NextResponse.json({ error: "playerId required" }, { status: 400 });
+  }
+
+  const fav = await prisma.favorite.findUnique({
+    where: { userId_playerId: { userId: session.user.id, playerId } },
+  });
+  return NextResponse.json({ favorited: Boolean(fav) });
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
