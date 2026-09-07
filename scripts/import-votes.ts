@@ -19,6 +19,7 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { createClient } from "@libsql/client";
+import { libsqlConfig } from "../src/lib/libsql-config";
 
 const exportPath = process.argv[2];
 if (!exportPath) {
@@ -40,10 +41,7 @@ const { players, votes } = JSON.parse(readFileSync(exportPath, "utf8")) as {
   }[];
 };
 
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || "file:./prisma/dev.db",
-  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
-});
+const db = createClient(libsqlConfig());
 
 async function main() {
   const oldIdToNhlId = new Map(players.map((p) => [p.id, p.nhlId]));

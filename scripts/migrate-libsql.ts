@@ -16,13 +16,12 @@ import "dotenv/config";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@libsql/client";
+import { libsqlConfig, libsqlConfigSummary } from "../src/lib/libsql-config";
 
 const MIGRATIONS_DIR = join(process.cwd(), "prisma", "migrations");
 
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || "file:./prisma/dev.db",
-  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
-});
+console.log(libsqlConfigSummary());
+const db = createClient(libsqlConfig());
 
 /** Split a migration file into individual statements: drop full-line `--`
  *  comments, then split on `;`. The Prisma-generated SQL has no procedural
