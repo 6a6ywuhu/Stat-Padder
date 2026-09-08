@@ -20,8 +20,7 @@ import { ChartLineUp } from "@phosphor-icons/react/dist/ssr";
 import { teamAccentStyle } from "@/lib/contrast";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
 import { TeamPixelMosaic } from "@/components/TeamPixelMosaic";
-import { OverallBarDisplay } from "@/components/AttributeBar";
-import { PlayerAttributeRow } from "@/components/PlayerAttributeRow";
+import { ProfileVoting } from "@/components/ProfileVoting";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ReportButton } from "@/components/ReportButton";
 import { BackButton } from "@/components/BackButton";
@@ -159,14 +158,6 @@ export default async function PlayerProfilePage({
                 votes
               </span>
               <FavoriteButton playerId={player.id} />
-              <Link
-                href={`/players/${player.id}/history`}
-                prefetch={false}
-                className="btn-hero-chip"
-              >
-                <ChartLineUp size={13} />
-                Rating History
-              </Link>
               <ReportButton playerId={player.id} />
             </div>
           </div>
@@ -206,123 +197,44 @@ export default async function PlayerProfilePage({
         )}
 
         <section>
-          <h2 className="mb-3 font-display text-lg font-bold text-[var(--color-fg)]">Attribute Votes</h2>
-
-          {scored && (
-            <div className="mb-4 rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-2.5 sm:p-3">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-faint)]">
-                  Overall
-                </p>
-                <Link
-                  href={`/players/${player.id}/history`}
-                  prefetch={false}
-                  className="text-xs font-medium text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
-                >
-                  View rating history →
-                </Link>
-              </div>
-              <OverallBarDisplay
-                direction={scored.overall.direction}
-                pct={scored.overall.pct}
-                value={scored.overall.value}
-              />
-            </div>
-          )}
-
-          {isGoalie ? (
-            <div className="divide-y divide-[var(--color-border)] rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] px-3 sm:px-4">
-              {attrs.map((a) => {
-                const bar = scored?.attributeBars[a];
-                return (
-                  <PlayerAttributeRow
-                    key={a}
-                    playerId={player.id}
-                    attribute={a}
-                    label={ATTRIBUTE_LABELS[a]}
-                    direction={bar?.direction ?? "zero"}
-                    pct={bar?.pct ?? 0}
-                    positiveVotes={bar?.positiveVotes ?? 0}
-                    negativeVotes={bar?.negativeVotes ?? 0}
-                    net={bar?.net ?? 0}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div className="space-y-4 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
-              {ATTRIBUTE_CATEGORIES.map((cat) => {
-                const catBar = scored?.categoryBars[cat.key];
-                return (
-                <div key={cat.key}>
-                  <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-faint)]">
-                    {cat.label}
-                  </h3>
-                  {/* All three categories get a summary bar now that they sit
-                      side by side on desktop — General used to skip this
-                      (it looked like a near-duplicate of the Overall bar
-                      right above), but leaving it out threw the three
-                      columns out of alignment. */}
-                  <div className="mb-1.5 rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-2 sm:p-2.5">
-                    <OverallBarDisplay
-                      direction={catBar?.direction ?? "zero"}
-                      pct={catBar?.pct ?? 0}
-                      value={catBar?.value ?? 0}
-                      color={cat.key === "general" ? "vote" : cat.key}
-                    />
-                  </div>
-                  <div className="divide-y divide-[var(--color-border)] rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] px-3 sm:px-4">
-                    {cat.attributes.map((a) => {
-                      const bar = scored?.attributeBars[a];
-                      return (
-                        <PlayerAttributeRow
-                          key={a}
-                          playerId={player.id}
-                          attribute={a}
-                          label={ATTRIBUTE_LABELS[a]}
-                          direction={bar?.direction ?? "zero"}
-                          pct={bar?.pct ?? 0}
-                          positiveVotes={bar?.positiveVotes ?? 0}
-                          negativeVotes={bar?.negativeVotes ?? 0}
-                          net={bar?.net ?? 0}
-                          color={cat.key === "general" ? "vote" : cat.key}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-6">
-          <h2 className="mb-2 font-display text-lg font-bold text-[var(--color-fg)]">
-            Booster Attributes
-          </h2>
-          <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
-            {BOOSTER_ATTRIBUTES.map((b) => {
-              const bar = scored?.boosterBars[b];
-              return (
-                <div
-                  key={b}
-                  className="rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] px-3 sm:px-4"
-                >
-                  <PlayerAttributeRow
-                    playerId={player.id}
-                    attribute={b}
-                    label={BOOSTER_ATTRIBUTE_LABELS[b]}
-                    direction={bar?.direction ?? "zero"}
-                    pct={bar?.pct ?? 0}
-                    positiveVotes={bar?.positiveVotes ?? 0}
-                    negativeVotes={bar?.negativeVotes ?? 0}
-                    net={bar?.net ?? 0}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <ProfileVoting
+            playerId={player.id}
+            section={
+              isGoalie
+                ? {
+                    kind: "flat",
+                    attrs: attrs.map((a) => ({
+                      key: a,
+                      label: ATTRIBUTE_LABELS[a],
+                      color: "vote" as const,
+                    })),
+                  }
+                : {
+                    kind: "categories",
+                    cats: ATTRIBUTE_CATEGORIES.map((cat) => ({
+                      key: cat.key,
+                      label: cat.label,
+                      color: (cat.key === "general" ? "vote" : cat.key) as "vote" | "offense" | "defense",
+                      attrs: cat.attributes.map((a) => ({
+                        key: a,
+                        label: ATTRIBUTE_LABELS[a],
+                        color: (cat.key === "general" ? "vote" : cat.key) as "vote" | "offense" | "defense",
+                      })),
+                    })),
+                  }
+            }
+            boosters={BOOSTER_ATTRIBUTES.map((b) => ({
+              key: b,
+              label: BOOSTER_ATTRIBUTE_LABELS[b],
+              color: "vote" as const,
+            }))}
+            community={Object.fromEntries(
+              [
+                ...attrs.map((a) => [a, scored?.attributeBars[a]] as const),
+                ...BOOSTER_ATTRIBUTES.map((b) => [b, scored?.boosterBars[b]] as const),
+              ].map(([k, bar]) => [k, { value: bar?.net ?? 0, votes: bar?.votes ?? 0 }])
+            )}
+          />
         </section>
 
         <section className="mt-8">

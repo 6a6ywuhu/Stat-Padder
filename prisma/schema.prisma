@@ -62,26 +62,35 @@ model Player {
 // One row per individual vote. We need full records (not just running
 // totals) to support the rolling 24h cooldown per voter+attribute, spike
 // detection, and admin reporting.
+/**
+ * One row per attribute per submission. A "submission" is one voter's take
+ * on one player, cast in a single Submit — every attribute row from that
+ * Submit shares a `submissionId`. The write path deletes a voter's earlier
+ * rows for a player before inserting the new ones, so at read time there is
+ * exactly one live row per (voter, player, attribute) and scoring is a
+ * plain AVG(value). `voterKey` = userId when signed in, else voterToken.
+ */
 model AttributeVote {
-  id          String   @id @default(cuid())
-  playerId    String
-  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  attribute   String   // e.g. "mobility", "shooting" ... see src/lib/attributes.ts
-  value       Int      // +1 or -1
-  voterToken  String   // cookie/localStorage token — used for the rolling cooldown
-  voterHash   String   // sha256(ip + user-agent + salt) — abuse guard only
-  // Set when the voter was signed in. Never surfaced on public player/team
-  // pages (those only ever show aggregate net counts) — only the voter
-  // themselves can see it, via their own account's vote history.
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  playerId     String
+  player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  attribute    String   // see src/lib/attributes.ts
+  value        Int      // -100 … +100
+  submissionId String   // shared by every attribute row from one Submit
+  voterKey     String   // userId if signed in, else voterToken — the dedup identity
+  voterToken   String   // always the browser token (for the anon 10-player cap + claim-on-signup)
+  voterHash    String   // sha256(ip + user-agent + salt) — abuse guard only
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /** "YYYY-MM-DD" in the voter's local timezone — gates the once-per-day re-vote for accounts. */
+  localDay     String
+  createdAt    DateTime @default(now())
 
   @@index([playerId, attribute])
-  @@index([voterToken, playerId, attribute])
-  @@index([voterHash, createdAt])
-  @@index([createdAt])
-  @@index([userId, createdAt])
+  @@index([playerId, voterKey])
+  @@index([voterToken])
+  @@index([userId, playerId])
+  @@index([submissionId])
 }
 
 // One row per person who's ever left a player's watchlist star, or a
