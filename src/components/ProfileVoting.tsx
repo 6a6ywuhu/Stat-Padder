@@ -171,7 +171,7 @@ export function ProfileVoting({
             {mode === "vote" ? "Overall (your rating)" : "Overall"}
           </p>
         </div>
-        <OverallBarDisplay {...barOf(overall)} value={Math.round(overall * 10) / 10} />
+        <OverallBarDisplay {...barOf(overall)} value={Math.round(overall * 10) / 10} prominent />
       </div>
 
       {mode === "vote" && (

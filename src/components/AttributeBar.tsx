@@ -76,24 +76,31 @@ export function OverallBarDisplay({
   pct,
   value,
   color = "vote",
+  prominent = false,
 }: {
   direction: Direction;
   pct: number;
   value: number;
   color?: BarColor;
+  /** The page's headline Overall score — bigger number, taller track. */
+  prominent?: boolean;
 }) {
   const width = direction === "zero" ? 0 : Math.max(0, Math.min(100, pct));
   const gradient = gradientFor(direction, color);
   return (
-    <div className="flex items-center gap-2.5">
+    <div className={`flex items-center ${prominent ? "gap-3" : "gap-2.5"}`}>
       <div
-        className="flex h-2.5 flex-1 overflow-hidden rounded-none bg-[var(--color-empty)]/40"
+        className={`flex flex-1 overflow-hidden rounded-none bg-[var(--color-empty)]/40 ${prominent ? "h-3" : "h-2.5"}`}
         style={trackStyle(gradient)}
       >
         <div className="h-full shrink-0 transition-[width] duration-300" style={{ width: `${width}%` }} />
         <div className="h-full flex-1 bg-[var(--color-empty)]" />
       </div>
-      <span className="w-12 shrink-0 text-right font-display text-base font-bold tabular-nums text-[var(--color-fg)]">
+      <span
+        className={`shrink-0 text-right font-display font-bold tabular-nums text-[var(--color-fg)] ${
+          prominent ? "w-24 text-2xl" : "w-12 text-base"
+        }`}
+      >
         {formatRating(value)}
       </span>
     </div>
