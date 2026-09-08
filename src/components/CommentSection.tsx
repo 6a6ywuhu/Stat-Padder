@@ -78,7 +78,7 @@ export function CommentSection({ playerId, initialComments }: { playerId: string
             <button
               type="submit"
               disabled={pending || !body.trim()}
-              className="btn-pixel cursor-pointer rounded-md border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-1.5 font-display text-xs font-semibold uppercase tracking-wide text-[var(--color-accent-fg)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-pixel cursor-pointer rounded-md border-2 border-[var(--color-accent)] bg-[var(--color-card)] px-3 py-1.5 font-display text-xs font-semibold uppercase tracking-wide text-[var(--color-fg)] transition-colors hover:bg-[var(--color-accent)]/15 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending ? "Posting…" : "Post"}
             </button>

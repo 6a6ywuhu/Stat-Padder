@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
   const { playerId } = parsed.data;
 
-  const player = await prisma.player.findUnique({ where: { id: playerId } });
+  const player = await prisma.player.findUnique({ where: { id: playerId }, select: { id: true } });
   if (!player) {
     return NextResponse.json({ error: "Player not found." }, { status: 404 });
   }

@@ -17,7 +17,6 @@ import {
 import { getPlayerLanding } from "@/lib/nhl-api";
 import { countRatingsForPlayer } from "@/lib/votes";
 import { calculateAge, formatHeight } from "@/lib/format";
-import { ChartLineUp } from "@phosphor-icons/react/dist/ssr";
 import { teamAccentStyle } from "@/lib/contrast";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
 import { TeamPixelMosaic } from "@/components/TeamPixelMosaic";

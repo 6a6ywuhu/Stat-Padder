@@ -101,7 +101,7 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
         <button
           type="submit"
           disabled={submitting || !name || !email || password.length < 8}
-          className="btn-pixel w-full cursor-pointer rounded-md border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 font-display text-sm font-semibold uppercase tracking-wide text-[var(--color-accent-fg)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="btn-pixel w-full cursor-pointer rounded-md border-2 border-[var(--color-accent)] bg-[var(--color-card)] px-3 py-2 font-display text-sm font-semibold uppercase tracking-wide text-[var(--color-fg)] transition-colors hover:bg-[var(--color-accent)]/15 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Creating account…" : "Create account"}
         </button>

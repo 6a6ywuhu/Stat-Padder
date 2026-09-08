@@ -214,13 +214,18 @@ export async function getSkaterSummaryAll(
   seasonId: number,
   { since }: { since?: string } = {}
 ): Promise<NhlSkaterSummaryRow[]> {
-  const rows: NhlSkaterSummaryRow[] = [];
-  for (let start = 0; start < 2000; start += 100) {
-    const { data } = await getSkaterSummary(seasonId, { limit: 100, start, since });
-    rows.push(...data);
-    if (data.length < 100) break;
-  }
-  return rows;
+  // Page 1 tells us the row count; fetch the rest concurrently rather than
+  // walking ~13 pages one blocking request at a time.
+  const first = await getSkaterSummary(seasonId, { limit: 100, start: 0, since });
+  const total = Math.min(first.total ?? first.data.length, 2000);
+  if (total <= 100) return first.data;
+
+  const starts: number[] = [];
+  for (let start = 100; start < total; start += 100) starts.push(start);
+  const pages = await Promise.all(
+    starts.map((start) => getSkaterSummary(seasonId, { limit: 100, start, since }))
+  );
+  return [first.data, ...pages.map((p) => p.data)].flat();
 }
 
 export type NhlGoalieSummaryRow = {

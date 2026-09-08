@@ -55,16 +55,32 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function getRosterWithRetry(abbrev: string, attempts = 3) {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
   for (let i = 0; i < attempts; i++) {
     try {
-      return await getRoster(abbrev, 0);
+      return await fn();
     } catch (err) {
       if (i === attempts - 1) throw err;
       await sleep(1500 * (i + 1));
     }
   }
   throw new Error("unreachable");
+}
+
+const getRosterWithRetry = (abbrev: string) => withRetry(() => getRoster(abbrev, 0));
+
+/** Run `fn` over `items` with at most `concurrency` in flight at once. */
+async function mapPool<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
 }
 
 export type SyncResult = {
@@ -75,50 +91,50 @@ export type SyncResult = {
 
 export async function runSync(onlyAbbrevs: string[] = []): Promise<SyncResult> {
   const filter = onlyAbbrevs.map((a) => a.toUpperCase());
-  const standings = await getStandingsNow(0);
+  const standings = await withRetry(() => getStandingsNow(0));
   const abbrevs = Array.from(new Set(standings.map((s) => s.teamAbbrev.default))).filter(
     (a) => filter.length === 0 || filter.includes(a)
   );
 
-  for (const team of standings) {
-    const abbrev = team.teamAbbrev.default;
-    if (filter.length > 0 && !filter.includes(abbrev)) continue;
-    const commonName = team.teamCommonName?.default ?? "";
-    const fullName = team.teamName.default;
-    // Most teams' placeName is a clean city, but the Islanders and Rangers
-    // come through as "NY Islanders" / "NY Rangers". The full team name is
-    // reliable ("New York Rangers"), so derive the city by stripping the
-    // common name off the end and only fall back to placeName otherwise.
-    const city =
-      commonName && fullName.endsWith(` ${commonName}`)
-        ? fullName.slice(0, -(commonName.length + 1))
-        : team.placeName?.default ?? "";
-    const name = commonName || fullName.replace(`${city} `, "");
-    await upsertTeam(abbrev, name, city, team.conferenceName, team.divisionName);
-  }
+  await Promise.all(
+    standings
+      .filter((team) => filter.length === 0 || filter.includes(team.teamAbbrev.default))
+      .map((team) => {
+        const abbrev = team.teamAbbrev.default;
+        const commonName = team.teamCommonName?.default ?? "";
+        const fullName = team.teamName.default;
+        // Most teams' placeName is a clean city, but the Islanders and Rangers
+        // come through as "NY Islanders" / "NY Rangers". The full team name is
+        // reliable ("New York Rangers"), so derive the city by stripping the
+        // common name off the end and only fall back to placeName otherwise.
+        const city =
+          commonName && fullName.endsWith(` ${commonName}`)
+            ? fullName.slice(0, -(commonName.length + 1))
+            : team.placeName?.default ?? "";
+        const name = commonName || fullName.replace(`${city} `, "");
+        return upsertTeam(abbrev, name, city, team.conferenceName, team.divisionName);
+      })
+  );
 
   let totalPlayers = 0;
   const failedTeams: string[] = [];
-  for (const abbrev of abbrevs) {
+
+  // 6 rosters in flight at once — fast enough to finish inside a serverless
+  // function's timeout, gentle enough on the unofficial NHL API.
+  await mapPool(abbrevs, 6, async (abbrev) => {
     try {
       const roster = await getRosterWithRetry(abbrev);
-      for (const p of roster.forwards) {
-        await upsertRosterPlayer(p, abbrev, p.positionCode);
-        totalPlayers++;
-      }
-      for (const p of roster.defensemen) {
-        await upsertRosterPlayer(p, abbrev, "D");
-        totalPlayers++;
-      }
-      for (const p of roster.goalies) {
-        await upsertRosterPlayer(p, abbrev, "G");
-        totalPlayers++;
-      }
+      const entries: [NhlRosterPlayer, string][] = [
+        ...roster.forwards.map((p) => [p, p.positionCode] as [NhlRosterPlayer, string]),
+        ...roster.defensemen.map((p) => [p, "D"] as [NhlRosterPlayer, string]),
+        ...roster.goalies.map((p) => [p, "G"] as [NhlRosterPlayer, string]),
+      ];
+      await Promise.all(entries.map(([p, pos]) => upsertRosterPlayer(p, abbrev, pos)));
+      totalPlayers += entries.length;
     } catch {
       failedTeams.push(abbrev);
     }
-    await sleep(300);
-  }
+  });
 
   return { teamsSynced: abbrevs.length, playersSynced: totalPlayers, failedTeams };
 }

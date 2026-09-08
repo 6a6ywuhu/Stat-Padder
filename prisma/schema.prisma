@@ -91,6 +91,10 @@ model AttributeVote {
   @@index([voterToken])
   @@index([userId, playerId])
   @@index([submissionId])
+  // Homepage "risers since Monday" and the week/month rankings windows all
+  // filter AttributeVote by createdAt with no other narrowing column.
+  @@index([createdAt])
+  @@index([playerId, createdAt])
 }
 
 // One row per person who's ever left a player's watchlist star, or a
@@ -117,6 +121,7 @@ model Comment {
   createdAt DateTime @default(now())
 
   @@index([playerId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // --- Auth.js (NextAuth v5) models --------------------------------------

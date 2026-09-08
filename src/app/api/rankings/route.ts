@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
   const data = await getRankingsWindow(win);
   return NextResponse.json(data, {
     headers: {
+      // CDN-Cache-Control is the standard header Vercel reads; the Netlify
+      // one is kept for parity if this ever moves back. Both are CDN-only.
+      "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=600",
       "Netlify-CDN-Cache-Control": "public, durable, s-maxage=60, stale-while-revalidate=600",
     },
   });

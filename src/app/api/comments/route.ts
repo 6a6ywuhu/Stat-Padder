@@ -20,9 +20,19 @@ export async function POST(req: NextRequest) {
   }
   const { playerId, body } = parsed.data;
 
-  const player = await prisma.player.findUnique({ where: { id: playerId } });
+  const player = await prisma.player.findUnique({ where: { id: playerId }, select: { id: true } });
   if (!player) {
     return NextResponse.json({ error: "Player not found." }, { status: 404 });
+  }
+
+  // Light anti-spam: one comment per user per 15s. Accounts + admin
+  // moderation are the real guardrails, this just stops runaway loops.
+  const recent = await prisma.comment.findFirst({
+    where: { userId: session.user.id, createdAt: { gt: new Date(Date.now() - 15_000) } },
+    select: { id: true },
+  });
+  if (recent) {
+    return NextResponse.json({ error: "You're commenting too fast — wait a moment." }, { status: 429 });
   }
 
   const comment = await prisma.comment.create({

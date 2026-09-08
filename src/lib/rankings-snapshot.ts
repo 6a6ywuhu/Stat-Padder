@@ -27,7 +27,6 @@ export type SnapshotPlayer = {
   teamId: string | null;
   headshotUrl: string | null;
   nhlId: number;
-  teamCity: string | null;
   overall: OverallBar;
   totalVotes: number;
   categoryBars: Partial<Record<AttributeCategory, OverallBar>>;
@@ -54,7 +53,6 @@ function toSnapshotPlayer(s: ScoredPlayer<PlayerWithTeam>, keepAttributeBars = f
     teamId: s.player.teamId,
     headshotUrl: s.player.headshotUrl,
     nhlId: s.player.nhlId,
-    teamCity: s.player.team?.city ?? null,
     overall: s.overall,
     totalVotes: s.totalVotes,
     categoryBars: s.categoryBars,
@@ -77,7 +75,9 @@ function rankSort(a: SnapshotPlayer, b: SnapshotPlayer): number {
   if (d !== 0) return d;
   const v = b.totalVotes - a.totalVotes;
   if (v !== 0) return v;
-  return (a.teamCity ?? "").localeCompare(b.teamCity ?? "");
+  // Final tiebreak is by name, not team — otherwise a fresh, low-vote
+  // board is just every player from one city clustered at the top.
+  return a.name.localeCompare(b.name);
 }
 
 async function buildWindow(w: RankWindow): Promise<WindowSnapshot> {

@@ -15,6 +15,11 @@ const edgeCacheHeaders = [
   { key: "Netlify-CDN-Cache-Control", value: NETLIFY_EDGE_CACHE },
 ];
 
+// Hand-drawn portraits and brand art are content-addressed by name and
+// only ever change when we ship a new file, so let the browser keep them
+// for a year instead of revalidating on every navigation.
+const IMMUTABLE_ASSET = "public, max-age=31536000, immutable";
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "assets.nhle.com" }],
@@ -22,11 +27,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/player-stats", headers: edgeCacheHeaders },
+      { source: "/teams", headers: edgeCacheHeaders },
       { source: "/teams/:abbrev", headers: edgeCacheHeaders },
       // /players/:id is deliberately NOT here — after you vote, a refresh
       // has to show your vote, and a CDN hold would keep serving the
       // pre-vote copy for the window.
       { source: "/players/:id/history", headers: edgeCacheHeaders },
+      { source: "/pixel-profiles/:path*", headers: [{ key: "Cache-Control", value: IMMUTABLE_ASSET }] },
+      { source: "/brand/:path*", headers: [{ key: "Cache-Control", value: IMMUTABLE_ASSET }] },
     ];
   },
 };

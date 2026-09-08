@@ -14,11 +14,12 @@ import {
   WeeklyTeamStats,
 } from "@/lib/weekly";
 
-// Rendered per request. The weekly boards move with every vote and
-// Netlify's ISR wasn't refreshing them on a revalidate window — so the
-// boards sat on stale (pre-Monday) data. getWeeklyLeaders is a couple of
-// indexed queries; the NHL stat lookups inside it keep their fetch cache.
-export const dynamic = "force-dynamic";
+// ISR: the weekly boards only shift when a vote lands or the NHL stat
+// windows tick over, so a short revalidate keeps the landing page on the
+// CDN edge (no cold-start on the home route) while staying fresh enough
+// for a "since Monday" leaderboard. getWeeklyLeaders' own NHL fetches
+// keep their longer fetch cache underneath this.
+export const revalidate = 300;
 
 export default async function Home() {
   const { players, teams } = await getWeeklyLeaders();
