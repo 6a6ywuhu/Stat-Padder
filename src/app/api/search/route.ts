@@ -7,14 +7,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ players: [], teams: [] });
   }
 
-  const [firstNameMatches, lastNameMatches, teams] = await Promise.all([
+  // Each whitespace token must match somewhere in the name; a single token
+  // can land in either firstName or lastName, so "dylan larkin", "larkin",
+  // and "dylan" all resolve to the same player.
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const playerWhere = {
+    AND: tokens.map((t) => ({
+      OR: [{ firstName: { contains: t } }, { lastName: { contains: t } }],
+    })),
+  };
+
+  const [playerMatches, teams] = await Promise.all([
     prisma.player.findMany({
-      where: { firstName: { contains: q } },
-      select: { id: true, firstName: true, lastName: true, position: true, teamId: true },
-      take: 8,
-    }),
-    prisma.player.findMany({
-      where: { lastName: { contains: q } },
+      where: playerWhere,
       select: { id: true, firstName: true, lastName: true, position: true, teamId: true },
       take: 8,
     }),
@@ -27,9 +32,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const seen = new Set<string>();
-  const players = [...firstNameMatches, ...lastNameMatches]
-    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+  const players = playerMatches
     .slice(0, 8)
     .map((p) => ({
       id: p.id,
