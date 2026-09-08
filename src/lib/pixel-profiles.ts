@@ -11,6 +11,7 @@ const PIXEL_PROFILE_SLUGS = new Set([
   "auston-matthews",
   "brady-tkachuk",
   "brandon-bussi",
+  "brock-boeser",
   "brock-faber",
   "cale-makar",
   "charlie-mcavoy",
