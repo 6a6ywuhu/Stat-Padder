@@ -8,17 +8,22 @@ export const ANON_PLAYER_LIMIT = 10;
 /**
  * Live tallies per (player, attribute). The write path keeps exactly one
  * row per (voter, player, attribute), so a plain aggregate is the score.
- * `since` restricts to submissions on/after that moment (week/month views).
+ * `since` / `before` bound which submissions count (week/month views, or a
+ * "rating as of last Monday" snapshot).
  */
 export async function getVoteMapsForPlayers(
   playerIds: string[],
-  since?: Date
+  window?: { since?: Date; before?: Date }
 ): Promise<Record<string, PlayerVoteMap>> {
   if (playerIds.length === 0) return {};
 
+  const createdAt =
+    window?.since || window?.before
+      ? { ...(window.since ? { gte: window.since } : {}), ...(window.before ? { lt: window.before } : {}) }
+      : undefined;
   const where = {
     playerId: { in: playerIds },
-    ...(since ? { createdAt: { gte: since } } : {}),
+    ...(createdAt ? { createdAt } : {}),
   };
 
   const [totals, positives, negatives] = await Promise.all([

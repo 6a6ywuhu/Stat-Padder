@@ -158,14 +158,6 @@ export default async function PlayerProfilePage({
                 votes
               </span>
               <FavoriteButton playerId={player.id} />
-              <Link
-                href={`/players/${player.id}/history`}
-                prefetch={false}
-                className="btn-hero-chip"
-              >
-                <ChartLineUp size={13} />
-                Rating History
-              </Link>
               <ReportButton playerId={player.id} />
             </div>
           </div>
@@ -207,7 +199,6 @@ export default async function PlayerProfilePage({
         <section>
           <ProfileVoting
             playerId={player.id}
-            historyHref={`/players/${player.id}/history`}
             section={
               isGoalie
                 ? {

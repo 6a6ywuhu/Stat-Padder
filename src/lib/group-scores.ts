@@ -72,7 +72,7 @@ export async function scoreGroupUncached(
     select: PLAYER_FIELDS,
   })) as PlayerWithTeam[];
 
-  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), opts.since);
+  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), { since: opts.since });
 
   const entries = players.map((p) => ({
     player: p,

@@ -51,13 +51,11 @@ const STEP_BUTTONS: { delta: number; label: string }[] = [
 
 export function ProfileVoting({
   playerId,
-  historyHref,
   section,
   boosters,
   community,
 }: {
   playerId: string;
-  historyHref: string;
   section: VoteSection;
   boosters: VoteAttr[];
   /** keyed by attribute, incl. boosters */
@@ -169,19 +167,10 @@ export function ProfileVoting({
 
       {/* Overall */}
       <div className="mb-4 rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] p-2.5 sm:p-3">
-        <div className="mb-1.5 flex items-center justify-between">
+        <div className="mb-1.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-fg-faint)]">
             {mode === "vote" ? "Overall (your rating)" : "Overall"}
           </p>
-          {mode === "view" && (
-            <Link
-              href={historyHref}
-              prefetch={false}
-              className="text-xs font-medium text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
-            >
-              View rating history →
-            </Link>
-          )}
         </div>
         <OverallBarDisplay {...barOf(overall)} value={Math.round(overall * 10) / 10} />
       </div>

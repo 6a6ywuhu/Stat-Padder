@@ -80,10 +80,7 @@ export async function computeTeamRankings(opts: { since?: Date } = {}): Promise<
     }),
   ]);
 
-  const voteMaps = await getVoteMapsForPlayers(
-    players.map((p) => p.id),
-    opts.since
-  );
+  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), { since: opts.since });
 
   const rosters = new Map<string, typeof players>();
   for (const p of players) {

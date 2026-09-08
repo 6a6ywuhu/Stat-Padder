@@ -65,12 +65,12 @@ export default async function Home() {
 
       <section className="mx-auto max-w-2xl px-4 pb-14 pt-6 sm:px-6">
         <div className="flex flex-col gap-6">
-          <Board title="Top players this week" viewAllHref="/rankings" isEmpty={players.length === 0}>
+          <Board title="Biggest rating risers this week" viewAllHref="/rankings" isEmpty={players.length === 0}>
             {players.map((p, i) => (
               <PlayerRow key={p.id} rank={i + 1} player={p} />
             ))}
           </Board>
-          <Board title="Top teams this week" viewAllHref="/team-rankings" isEmpty={teams.length === 0}>
+          <Board title="Biggest team risers this week" viewAllHref="/team-rankings" isEmpty={teams.length === 0}>
             {teams.map((t, i) => (
               <TeamRow key={t.id} rank={i + 1} team={t} />
             ))}
@@ -132,22 +132,22 @@ function Rank({ n }: { n: number }) {
   );
 }
 
-function NetBadge({ net }: { net: number }) {
+function RiseBadge({ delta }: { delta: number }) {
   return (
     <span className="flex shrink-0 flex-col items-end leading-tight">
       <span
         className={`font-display text-sm font-bold tabular-nums ${
-          net > 0
+          delta > 0
             ? "text-[var(--color-positive)]"
-            : net < 0
+            : delta < 0
               ? "text-[var(--color-negative)]"
               : "text-[var(--color-fg-faint)]"
         }`}
       >
-        {net > 0 ? "+" : ""}
-        {net}
+        {delta > 0 ? "+" : ""}
+        {(Math.round(delta * 10) / 10).toFixed(1)}
       </span>
-      <span className="text-[10px] uppercase tracking-wide text-[var(--color-fg-faint)]">votes</span>
+      <span className="text-[10px] uppercase tracking-wide text-[var(--color-fg-faint)]">this week</span>
     </span>
   );
 }
@@ -211,7 +211,7 @@ function PlayerRow({ rank, player }: { rank: number; player: WeeklyPlayer }) {
           </span>
           <PlayerStatLine stats={player.stats} />
         </span>
-        <NetBadge net={player.net} />
+        <RiseBadge delta={player.delta} />
       </Link>
     </li>
   );
@@ -235,7 +235,7 @@ function TeamRow({ rank, team }: { rank: number; team: WeeklyTeam }) {
           </span>
           <TeamStatLine stats={team.stats} />
         </span>
-        <NetBadge net={team.net} />
+        <RiseBadge delta={team.delta} />
       </Link>
     </li>
   );
