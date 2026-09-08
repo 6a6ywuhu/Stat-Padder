@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NetBarTrack, OverallBarDisplay, BarColor } from "./AttributeBar";
-import type { Direction } from "@/lib/scoring";
+import { formatRating, type Direction } from "@/lib/scoring";
 
 export type VoteAttr = { key: string; label: string; color: BarColor };
 export type VoteSection =
@@ -254,7 +254,7 @@ export function ProfileVoting({
             type="button"
             disabled={!canInteract || submitting}
             onClick={submit}
-            className="btn-pixel cursor-pointer bg-[var(--color-accent)] px-5 py-2 font-display text-sm font-bold uppercase tracking-wide text-[var(--color-accent-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-pixel cursor-pointer border-2 border-[var(--color-accent)] bg-[var(--color-card)] px-5 py-2 font-display text-sm font-bold uppercase tracking-wide text-[var(--color-fg)] transition-colors hover:bg-[var(--color-accent)]/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Submitting…" : "Submit rating"}
           </button>
@@ -324,35 +324,37 @@ function AttrRow({
   const bar = barOf(value);
   return (
     <div className="py-2">
-      <div className="mb-1 flex items-center justify-between gap-3">
+      <div className="mb-1 flex items-baseline justify-between gap-3">
         <span className="text-sm font-medium text-[var(--color-fg)]">{attr.label}</span>
-        <div className="flex items-center gap-2">
-          <span className="w-11 text-right text-sm font-semibold tabular-nums text-[var(--color-fg-muted)]">
-            {value > 0 ? "+" : ""}
-            {Math.round(value * 10) / 10}
-          </span>
-          {mode === "vote" && (
-            <div className="flex items-center gap-1" role="group" aria-label={`Rate ${attr.label}`}>
-              {STEP_BUTTONS.map((b) => (
-                <button
-                  key={b.delta}
-                  type="button"
-                  disabled={!interactive}
-                  aria-label={`${attr.label} ${b.delta > 0 ? "up" : "down"} ${Math.abs(b.delta)}`}
-                  onClick={() => onBump(attr.key, b.delta)}
-                  className={`flex h-7 min-w-[2rem] cursor-pointer items-center justify-center rounded-none border-2 px-1 text-[11px] font-bold leading-none transition-all active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
-                    b.delta > 0
-                      ? "border-[var(--color-positive)]/45 text-[var(--color-positive)] hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10"
-                      : "border-[var(--color-negative)]/45 text-[var(--color-negative)] hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10"
-                  }`}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-[var(--color-fg-muted)]">
+          {formatRating(value)}
+        </span>
       </div>
+
+      {mode === "vote" && (
+        <div
+          className="mb-1.5 flex items-center gap-1.5"
+          role="group"
+          aria-label={`Rate ${attr.label}`}
+        >
+          {STEP_BUTTONS.map((b) => (
+            <button
+              key={b.delta}
+              type="button"
+              disabled={!interactive}
+              aria-label={`${attr.label} ${b.delta > 0 ? "up" : "down"} ${Math.abs(b.delta)}`}
+              onClick={() => onBump(attr.key, b.delta)}
+              className={`flex h-7 flex-1 cursor-pointer items-center justify-center rounded-none border-2 text-xs font-bold leading-none transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+                b.delta > 0
+                  ? "border-[var(--color-positive)]/45 text-[var(--color-positive)] hover:border-[var(--color-positive)] hover:bg-[var(--color-positive)]/10"
+                  : "border-[var(--color-negative)]/45 text-[var(--color-negative)] hover:border-[var(--color-negative)] hover:bg-[var(--color-negative)]/10"
+              }`}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <NetBarTrack direction={bar.direction} pct={bar.pct} color={attr.color} />
 

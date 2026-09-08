@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { NetBarTrack, OverallBarDisplay, BarColor } from "./AttributeBar";
 import { StatusBadge } from "./StatusBadge";
-import type { AttributeBar, OverallBar } from "@/lib/scoring";
+import { formatRating, type AttributeBar, type OverallBar } from "@/lib/scoring";
 import { Attribute, AttributeCategory, ATTRIBUTE_LABELS, attributesForPosition, Position } from "@/lib/attributes";
 import { pixelProfileForName } from "@/lib/pixel-profiles";
 
@@ -12,8 +12,7 @@ function AttrCell({ attribute, bar }: { attribute: Attribute; bar: AttributeBar 
       <div className="mb-0.5 flex items-center justify-between gap-2 text-[10px] text-[var(--color-fg-faint)]">
         <span className="truncate">{ATTRIBUTE_LABELS[attribute]}</span>
         <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-          {bar && bar.net > 0 ? "+" : ""}
-          {bar?.net ?? 0}
+          {formatRating(bar?.net ?? 0)}
         </span>
       </div>
       <NetBarTrack direction={bar?.direction ?? "zero"} pct={bar?.pct ?? 0} height="h-1" />
@@ -35,8 +34,7 @@ function CategoryCell({ label, color, bar }: { label: string; color: BarColor; b
       <div className="mb-0.5 flex items-center justify-between gap-2 text-[10px] text-[var(--color-fg-faint)]">
         <span className="truncate">{label}</span>
         <span className="shrink-0 tabular-nums text-[var(--color-fg-muted)]">
-          {bar && bar.value > 0 ? "+" : ""}
-          {(bar?.value ?? 0).toFixed(1)}
+          {formatRating(bar?.value ?? 0)}
         </span>
       </div>
       <NetBarTrack direction={bar?.direction ?? "zero"} pct={bar?.pct ?? 0} height="h-1.5" color={color} />
@@ -134,8 +132,7 @@ export function PlayerCard({
               <NetBarTrack direction={overall.direction} pct={overall.pct} height="h-1.5" />
             </div>
             <span className="shrink-0 font-display text-sm font-bold tabular-nums text-[var(--color-fg)]">
-              {overall.value > 0 ? "+" : ""}
-              {overall.value.toFixed(1)}
+              {formatRating(overall.value)}
             </span>
           </div>
           <div className="hidden @[25rem]:block">

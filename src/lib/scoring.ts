@@ -31,6 +31,13 @@ export type Direction = "positive" | "negative" | "zero";
  *  the bar. */
 export const RATING_SCALE = 100;
 
+/** Rating display: no leading "+", negatives shown in parentheses.
+ *  e.g. 47 -> "47", 66.3 -> "66.3", -12.3 -> "(12.3)", 0 -> "0". */
+export function formatRating(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return r < 0 ? `(${Math.abs(r)})` : String(r);
+}
+
 /** Mean vote value for one attribute, in [−100, 100]. */
 export function meanScore(counts: VoteCounts | undefined): number {
   if (!counts || counts.total === 0) return 0;

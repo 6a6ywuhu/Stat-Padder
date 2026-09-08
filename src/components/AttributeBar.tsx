@@ -1,4 +1,4 @@
-import type { Direction } from "@/lib/scoring";
+import { formatRating, type Direction } from "@/lib/scoring";
 
 /** "vote" = the usual green/red positive-negative semantic — General and
  *  Booster both use this too (deliberately styled the same as Overall).
@@ -93,9 +93,8 @@ export function OverallBarDisplay({
         <div className="h-full shrink-0 transition-[width] duration-300" style={{ width: `${width}%` }} />
         <div className="h-full flex-1 bg-[var(--color-empty)]" />
       </div>
-      <span className="w-10 shrink-0 text-right font-display text-base font-bold tabular-nums text-[var(--color-fg)]">
-        {value > 0 ? "+" : ""}
-        {value.toFixed(1)}
+      <span className="w-12 shrink-0 text-right font-display text-base font-bold tabular-nums text-[var(--color-fg)]">
+        {formatRating(value)}
       </span>
     </div>
   );

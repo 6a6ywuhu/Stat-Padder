@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { CaretDown, CaretUp } from "@phosphor-icons/react";
 import { NetBarTrack, BarColor } from "./AttributeBar";
-import type { Direction } from "@/lib/scoring";
+import { formatRating, type Direction } from "@/lib/scoring";
 import type { Contributor } from "@/lib/team-scores";
 
 type Bar = { direction: Direction; pct: number };
@@ -33,8 +33,7 @@ const COLUMNS: { key: ScoreKey; label: string; color: BarColor }[] = [
 ];
 
 function fmt(v: number | null): string {
-  if (v === null) return "N/A";
-  return `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+  return v === null ? "N/A" : formatRating(v);
 }
 
 function ScoreCell({ value, bar, color }: { value: number | null; bar: Bar; color: BarColor }) {
