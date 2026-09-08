@@ -68,6 +68,19 @@ export async function getVoteMapForPlayer(playerId: string): Promise<PlayerVoteM
   return (await getVoteMapsForPlayers([playerId]))[playerId] ?? {};
 }
 
+/**
+ * How many distinct ratings this player has — one per submission, so a
+ * voter who has re-rated over several days counts once per submission
+ * that's still on file.
+ */
+export async function countRatingsForPlayer(playerId: string): Promise<number> {
+  const groups = await prisma.attributeVote.groupBy({
+    by: ["submissionId"],
+    where: { playerId },
+  });
+  return groups.length;
+}
+
 // --- Submitting a vote --------------------------------------------------
 
 export type VoterIdentity = {

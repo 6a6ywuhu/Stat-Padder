@@ -15,6 +15,7 @@ import {
   SKATER_POSITIONS,
 } from "@/lib/attributes";
 import { getPlayerLanding } from "@/lib/nhl-api";
+import { countRatingsForPlayer } from "@/lib/votes";
 import { calculateAge, formatHeight } from "@/lib/format";
 import { ChartLineUp } from "@phosphor-icons/react/dist/ssr";
 import { teamAccentStyle } from "@/lib/contrast";
@@ -49,7 +50,7 @@ export default async function PlayerProfilePage({
   // Scoring, the NHL stat line, and comments only depend on `player` and
   // don't depend on each other — fire them together. The DB is a region
   // away from the function, so a chain of awaits here is the whole cost.
-  const [scored, landing, comments] = await Promise.all([
+  const [scored, ratingsCount, landing, comments] = await Promise.all([
     scorePlayerUncached(
       player.id,
       isGoalie
@@ -57,6 +58,7 @@ export default async function PlayerProfilePage({
         : { kind: "skater", positions: crossPosition ? SKATER_POSITIONS : [position as SkaterPosition] },
       player.status === "RETIRED" ? ["RETIRED"] : ["ACTIVE", "INJURED"]
     ),
+    countRatingsForPlayer(player.id),
     getPlayerLanding(player.nhlId).catch(() => null),
     prisma.comment.findMany({
       where: { playerId: id },
@@ -150,12 +152,12 @@ export default async function PlayerProfilePage({
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
               <span
                 className="btn-hero-chip"
-                title="Total votes cast on this player, across every attribute"
+                title="Community ratings submitted for this player"
               >
                 <span className="font-display font-bold tabular-nums text-[var(--color-fg)]">
-                  {scored?.totalVotes ?? 0}
+                  {ratingsCount}
                 </span>
-                votes
+                {ratingsCount === 1 ? "rating" : "ratings"}
               </span>
               <FavoriteButton playerId={player.id} />
               <ReportButton playerId={player.id} />
@@ -232,7 +234,7 @@ export default async function PlayerProfilePage({
               [
                 ...attrs.map((a) => [a, scored?.attributeBars[a]] as const),
                 ...BOOSTER_ATTRIBUTES.map((b) => [b, scored?.boosterBars[b]] as const),
-              ].map(([k, bar]) => [k, { value: bar?.net ?? 0, votes: bar?.votes ?? 0 }])
+              ].map(([k, bar]) => [k, { value: bar?.net ?? 0 }])
             )}
           />
         </section>

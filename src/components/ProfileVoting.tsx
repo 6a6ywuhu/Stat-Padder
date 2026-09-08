@@ -12,9 +12,8 @@ export type VoteSection =
   | { kind: "categories"; cats: { key: string; label: string; color: BarColor; attrs: VoteAttr[] }[] };
 
 export type CommunityBar = {
-  /** community mean, −100 … +100 */
+  /** community mean, −100 … +100 — the starting point for a new rating */
   value: number;
-  votes: number;
 };
 
 const RATING_SCALE = 100;
@@ -188,7 +187,6 @@ export function ProfileVoting({
               attr={a}
               mode={mode}
               value={display[a.key] ?? 0}
-              community={community[a.key]}
               interactive={!!canInteract}
               onBump={bump}
             />
@@ -215,7 +213,6 @@ export function ProfileVoting({
                     attr={a}
                     mode={mode}
                     value={display[a.key] ?? 0}
-                    community={community[a.key]}
                     interactive={!!canInteract}
                     onBump={bump}
                   />
@@ -239,7 +236,6 @@ export function ProfileVoting({
                 attr={b}
                 mode={mode}
                 value={display[b.key] ?? 0}
-                community={community[b.key]}
                 interactive={!!canInteract}
                 onBump={bump}
               />
@@ -310,14 +306,12 @@ function AttrRow({
   attr,
   mode,
   value,
-  community,
   interactive,
   onBump,
 }: {
   attr: VoteAttr;
   mode: "view" | "vote";
   value: number;
-  community?: CommunityBar;
   interactive: boolean;
   onBump: (key: string, delta: number) => void;
 }) {
@@ -357,12 +351,6 @@ function AttrRow({
       )}
 
       <NetBarTrack direction={bar.direction} pct={bar.pct} color={attr.color} />
-
-      {mode === "view" && (
-        <div className="mt-0.5 text-[10px] text-[var(--color-fg-faint)]">
-          {community?.votes ? `${community.votes} rating${community.votes === 1 ? "" : "s"}` : "No ratings yet"}
-        </div>
-      )}
     </div>
   );
 }
