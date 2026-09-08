@@ -81,7 +81,7 @@ export function PlayerCard({
   // On a narrow card the first name collapses to an initial so the surname always fits.
   const spaceIdx = name.lastIndexOf(" ");
   const shortName = spaceIdx > 0 ? `${name[0]}. ${name.slice(spaceIdx + 1)}` : name;
-  const portrait = pixelProfileForName(name) ?? headshotUrl;
+  const portrait = pixelProfileForName(name, position) ?? headshotUrl;
 
   return (
     <Link

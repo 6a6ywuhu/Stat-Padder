@@ -75,7 +75,7 @@ export default async function PlayerProfilePage({
     ? teamAccentStyle(player.team.primaryColor, player.team.secondaryColor)
     : undefined;
 
-  const pixelProfile = pixelProfileFor(player.firstName, player.lastName);
+  const pixelProfile = pixelProfileFor(player.firstName, player.lastName, player.position);
   const portrait = pixelProfile ?? player.headshotUrl;
 
   return (

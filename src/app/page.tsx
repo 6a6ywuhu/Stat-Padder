@@ -188,7 +188,7 @@ function TeamStatLine({ stats }: { stats: WeeklyTeamStats | null }) {
 }
 
 function PlayerRow({ rank, player }: { rank: number; player: WeeklyPlayer }) {
-  const portrait = pixelProfileForName(player.name) ?? player.headshotUrl;
+  const portrait = pixelProfileForName(player.name, player.position) ?? player.headshotUrl;
   return (
     <li>
       <Link

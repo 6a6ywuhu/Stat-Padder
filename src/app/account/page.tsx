@@ -73,7 +73,8 @@ export default async function AccountPage() {
                   <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)]">
                     {(() => {
                       const portrait =
-                        pixelProfileFor(f.player.firstName, f.player.lastName) ?? f.player.headshotUrl;
+                        pixelProfileFor(f.player.firstName, f.player.lastName, f.player.position) ??
+                        f.player.headshotUrl;
                       return (
                         portrait && (
                           <Image src={portrait} alt="" fill unoptimized className="object-cover" />
