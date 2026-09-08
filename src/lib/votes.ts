@@ -1,10 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
-import { PlayerVoteMap } from "./scoring";
-import { Attribute, BoosterAttribute } from "./attributes";
+import { PlayerVoteMap, EMPTY_COUNTS } from "./scoring";
+
+/** How many distinct players an un-signed-in browser may vote on, ever. */
+export const ANON_PLAYER_LIMIT = 10;
 
 /**
- * Vote maps for many players in one query — used by rankings/comparison pages.
- * Pass `since` to only count votes cast on or after that moment (week/month views).
+ * Live tallies per (player, attribute). The write path keeps exactly one
+ * row per (voter, player, attribute), so a plain aggregate is the score.
+ * `since` restricts to submissions on/after that moment (week/month views).
  */
 export async function getVoteMapsForPlayers(
   playerIds: string[],
@@ -12,87 +16,148 @@ export async function getVoteMapsForPlayers(
 ): Promise<Record<string, PlayerVoteMap>> {
   if (playerIds.length === 0) return {};
 
-  const rows = await prisma.attributeVote.groupBy({
-    by: ["playerId", "attribute", "value"],
-    where: { playerId: { in: playerIds }, ...(since ? { createdAt: { gte: since } } : {}) },
-    _count: { _all: true },
-  });
+  const where = {
+    playerId: { in: playerIds },
+    ...(since ? { createdAt: { gte: since } } : {}),
+  };
+
+  const [totals, positives, negatives] = await Promise.all([
+    prisma.attributeVote.groupBy({
+      by: ["playerId", "attribute"],
+      where,
+      _sum: { value: true },
+      _count: { _all: true },
+    }),
+    prisma.attributeVote.groupBy({
+      by: ["playerId", "attribute"],
+      where: { ...where, value: { gt: 0 } },
+      _count: { _all: true },
+    }),
+    prisma.attributeVote.groupBy({
+      by: ["playerId", "attribute"],
+      where: { ...where, value: { lt: 0 } },
+      _count: { _all: true },
+    }),
+  ]);
 
   const result: Record<string, PlayerVoteMap> = {};
   for (const id of playerIds) result[id] = {};
 
-  for (const row of rows) {
-    const map = result[row.playerId] ?? (result[row.playerId] = {});
-    const bucket = map[row.attribute] ?? (map[row.attribute] = { pos: 0, neg: 0 });
-    if (row.value > 0) bucket.pos += row._count._all;
-    else bucket.neg += row._count._all;
+  const bucket = (playerId: string, attribute: string) => {
+    const map = result[playerId] ?? (result[playerId] = {});
+    return map[attribute] ?? (map[attribute] = { ...EMPTY_COUNTS });
+  };
+
+  for (const row of totals) {
+    const b = bucket(row.playerId, row.attribute);
+    b.sum = row._sum.value ?? 0;
+    b.total = row._count._all;
   }
+  for (const row of positives) bucket(row.playerId, row.attribute).pos = row._count._all;
+  for (const row of negatives) bucket(row.playerId, row.attribute).neg = row._count._all;
 
   return result;
 }
 
 export async function getVoteMapForPlayer(playerId: string): Promise<PlayerVoteMap> {
-  const maps = await getVoteMapsForPlayers([playerId]);
-  return maps[playerId] ?? {};
+  return (await getVoteMapsForPlayers([playerId]))[playerId] ?? {};
 }
 
-const SPIKE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-const SPIKE_THRESHOLD = 40; // votes on one player/attribute within the window
-const SPIKE_REPORT_COOLDOWN_MS = 60 * 60 * 1000; // don't re-flag the same combo within an hour
+// --- Submitting a vote --------------------------------------------------
 
-/** Just the write — the only thing that has to finish before the vote
- *  response goes back. Votes are anonymous; nothing is linked to an
- *  account (that lookup + write was the slowest part of the request). */
-export async function recordVote(params: {
-  playerId: string;
-  attribute: Attribute | BoosterAttribute;
-  value: 1 | -1;
+export type VoterIdentity = {
   voterToken: string;
   voterHash: string;
-}) {
-  await prisma.attributeVote.create({
-    data: {
-      playerId: params.playerId,
-      attribute: params.attribute,
-      value: params.value,
-      voterToken: params.voterToken,
-      voterHash: params.voterHash,
-    },
+  userId: string | null;
+};
+
+/** Whether this voter may submit for this player right now, and why not. */
+export type VoterState = {
+  canVote: boolean;
+  reason?: "anon-already-voted" | "anon-limit" | "voted-today";
+  /** distinct players this browser has voted on while signed out */
+  anonPlayersUsed: number;
+  anonLimit: number;
+  signedIn: boolean;
+};
+
+export async function getVoterState(
+  playerId: string,
+  identity: VoterIdentity,
+  localDay: string
+): Promise<VoterState> {
+  const anonLimit = ANON_PLAYER_LIMIT;
+
+  if (identity.userId) {
+    const today = await prisma.attributeVote.findFirst({
+      where: { playerId, userId: identity.userId, localDay },
+      select: { id: true },
+    });
+    return {
+      canVote: !today,
+      reason: today ? "voted-today" : undefined,
+      anonPlayersUsed: 0,
+      anonLimit,
+      signedIn: true,
+    };
+  }
+
+  const anonRows = await prisma.attributeVote.findMany({
+    where: { voterToken: identity.voterToken, userId: null },
+    select: { playerId: true },
+    distinct: ["playerId"],
   });
+  const anonPlayersUsed = anonRows.length;
+  const alreadyThis = anonRows.some((r) => r.playerId === playerId);
+
+  return {
+    canVote: !alreadyThis && anonPlayersUsed < anonLimit,
+    reason: alreadyThis ? "anon-already-voted" : anonPlayersUsed >= anonLimit ? "anon-limit" : undefined,
+    anonPlayersUsed,
+    anonLimit,
+    signedIn: false,
+  };
 }
 
-/** Abuse guard — runs after the response is flushed (via `after()`), so it
- *  never adds to the voter's wait. Flags an admin report if one
- *  player/attribute gets an abnormal burst of votes. */
-export async function checkVoteSpike(
-  playerId: string,
-  attribute: Attribute | BoosterAttribute
-) {
-  const since = new Date(Date.now() - SPIKE_WINDOW_MS);
-  const recentCount = await prisma.attributeVote.count({
-    where: { playerId, attribute, createdAt: { gte: since } },
-  });
+/**
+ * Replace this voter's vote on this player with `values` (attribute →
+ * −100…+100). Deletes their prior rows for the player first — and, when
+ * signed in, also clears any votes this same browser cast on the player
+ * while signed out.
+ */
+export async function recordSubmission(params: {
+  playerId: string;
+  values: Record<string, number>;
+  identity: VoterIdentity;
+  localDay: string;
+}) {
+  const { playerId, values, identity, localDay } = params;
+  const voterKey = identity.userId ?? identity.voterToken;
+  const submissionId = randomUUID();
 
-  if (recentCount < SPIKE_THRESHOLD) return;
+  const rows = Object.entries(values).map(([attribute, value]) => ({
+    playerId,
+    attribute,
+    value: Math.max(-100, Math.min(100, Math.round(value))),
+    submissionId,
+    voterKey,
+    voterToken: identity.voterToken,
+    voterHash: identity.voterHash,
+    userId: identity.userId,
+    localDay,
+  }));
 
-  const recentReportCutoff = new Date(Date.now() - SPIKE_REPORT_COOLDOWN_MS);
-  const existingOpenReport = await prisma.report.findFirst({
-    where: {
-      type: "VOTE_SPIKE",
-      playerId,
-      status: "OPEN",
-      createdAt: { gte: recentReportCutoff },
-      metaJson: { contains: `"attribute":"${attribute}"` },
-    },
-  });
-  if (existingOpenReport) return;
+  await prisma.$transaction([
+    prisma.attributeVote.deleteMany({ where: { playerId, voterKey } }),
+    ...(identity.userId
+      ? [
+          prisma.attributeVote.deleteMany({
+            where: { playerId, voterToken: identity.voterToken, userId: null },
+          }),
+        ]
+      : []),
+    prisma.attributeVote.createMany({ data: rows }),
+  ]);
 
-  await prisma.report.create({
-    data: {
-      type: "VOTE_SPIKE",
-      playerId,
-      message: `Abnormal vote volume on "${attribute}": ${recentCount} votes in the last ${SPIKE_WINDOW_MS / 60000} minutes.`,
-      metaJson: JSON.stringify({ attribute, windowMinutes: SPIKE_WINDOW_MS / 60000, count: recentCount }),
-    },
-  });
+  return { submissionId, count: rows.length };
 }

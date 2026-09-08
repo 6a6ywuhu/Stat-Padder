@@ -125,33 +125,28 @@ async function weeklyTeamStats(abbrev: string, weekStartYmd: string): Promise<We
 }
 
 /**
- * Top movers since Monday, by net upvotes (up − down) across every attribute,
- * each annotated with that player's / team's real on-ice week from the NHL
- * API. Teams sum the net of their own ACTIVE/INJURED roster. Retired players
- * (and their votes) are excluded, matching the rest of the site.
- */
-/**
- * Uncached on purpose. It reads votes straight from the DB, and neither
- * revalidateTag() nor a short ISR window on the home page reliably clears
- * a wrapped `unstable_cache` on Netlify — so a vote (or the Monday week
- * rollover) left the boards frozen. The home page's own `revalidate`
- * bounds how often this actually runs. The NHL stat annotations inside
- * still ride their own fetch cache.
+ * Top movers since Monday by the sum of the rating points cast on them
+ * this week — a player rated highly by a lot of voters rises. Each is
+ * annotated with their real on-ice week from the NHL API. Retired players
+ * are excluded, matching the rest of the site.
+ *
+ * Uncached on purpose — it reads votes straight from the DB so the home
+ * page's own `revalidate` is the only thing bounding how often it runs.
+ * The NHL stat lookups inside keep their own fetch cache.
  */
 export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
   const weekStart = startOfWeek();
   const weekStartYmd = ymd(weekStart);
 
   const rows = await prisma.attributeVote.groupBy({
-    by: ["playerId", "value"],
+    by: ["playerId"],
     where: { createdAt: { gte: weekStart } },
-    _count: { _all: true },
+    _sum: { value: true },
   });
 
   const netByPlayer = new Map<string, number>();
   for (const row of rows) {
-    const delta = row.value > 0 ? row._count._all : -row._count._all;
-    netByPlayer.set(row.playerId, (netByPlayer.get(row.playerId) ?? 0) + delta);
+    netByPlayer.set(row.playerId, row._sum.value ?? 0);
   }
 
   const voted = await prisma.player.findMany({
