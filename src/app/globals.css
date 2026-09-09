@@ -502,7 +502,20 @@ button.btn-hero-chip:hover {
   }
 }
 .animate-pixel-rise {
-  animation: pixel-rise 720ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
+  /* `pixel-rise ... both` holds the element at opacity:0 until it plays.
+     If that animation ever fails to run (a compositor hiccup, the element
+     first laid out while the tab is backgrounded, a client-side nav that
+     doesn't restart it), the hero would be stuck invisible — so a second,
+     instant animation forces the resting state ~1.6s in as a safety net. */
+  animation:
+    pixel-rise 720ms cubic-bezier(0.22, 0.68, 0.24, 1) both,
+    hero-reveal-failsafe 1ms linear 1600ms forwards;
+}
+@keyframes hero-reveal-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Hero logo shine sweep (see AnimatedLogo.tsx). The "lit" rendition

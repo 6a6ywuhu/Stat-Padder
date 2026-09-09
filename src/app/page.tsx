@@ -37,19 +37,19 @@ export default async function Home() {
           </h1>
           <p
             className="animate-pixel-rise mx-auto mt-6 max-w-xl font-display text-lg text-[var(--color-fg-muted)] sm:text-xl"
-            style={{ animationDelay: "130ms" }}
+            style={{ animationDelay: "130ms, 1600ms" }}
           >
             Player ratings, powered by the community.
           </p>
           <div
             className="animate-pixel-rise relative z-20 mx-auto mt-8 flex justify-center"
-            style={{ animationDelay: "240ms" }}
+            style={{ animationDelay: "240ms, 1600ms" }}
           >
             <SearchBar variant="hero" />
           </div>
           <div
             className="animate-pixel-rise mt-7 flex flex-wrap items-center justify-center gap-3"
-            style={{ animationDelay: "350ms" }}
+            style={{ animationDelay: "350ms, 1600ms" }}
           >
             {NAV_LINKS.map((link) => (
               <Link

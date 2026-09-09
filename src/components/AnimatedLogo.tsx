@@ -49,6 +49,10 @@ export function AnimatedLogo({
           aria-hidden="true"
           fill
           unoptimized
+          /* Preloaded so the shine layer is decoded before its ~900ms
+             sweep plays — otherwise, on a cold load, the animation can
+             finish over a not-yet-loaded image and no glint is seen. */
+          priority={playOnMount}
           className={`shine-sweep ${imgClassName}`}
         />
       )}
