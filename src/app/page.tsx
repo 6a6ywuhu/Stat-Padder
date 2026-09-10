@@ -5,7 +5,6 @@ import { SearchBar } from "@/components/SearchBar";
 import { StarField } from "@/components/StarField";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { pixelProfileForName } from "@/lib/pixel-profiles";
-import { formatRating } from "@/lib/scoring";
 import { NAV_LINKS } from "@/lib/nav";
 import {
   getWeeklyLeaders,
@@ -72,7 +71,7 @@ export default async function Home() {
               <PlayerRow key={p.id} rank={i + 1} player={p} />
             ))}
           </Board>
-          <Board title="Top-rated teams" viewAllHref="/team-rankings" isEmpty={teams.length === 0}>
+          <Board title="Biggest team risers this week" viewAllHref="/team-rankings" isEmpty={teams.length === 0}>
             {teams.map((t, i) => (
               <TeamRow key={t.id} rank={i + 1} team={t} />
             ))}
@@ -237,27 +236,8 @@ function TeamRow({ rank, team }: { rank: number; team: WeeklyTeam }) {
           </span>
           <TeamStatLine stats={team.stats} />
         </span>
-        <OverallBadge value={team.overall} />
+        <RiseBadge delta={team.weekRise} />
       </Link>
     </li>
-  );
-}
-
-function OverallBadge({ value }: { value: number | null }) {
-  return (
-    <span className="flex shrink-0 flex-col items-end leading-tight">
-      <span
-        className={`font-display text-sm font-bold tabular-nums ${
-          value === null
-            ? "text-[var(--color-fg-faint)]"
-            : value < 0
-              ? "text-[var(--color-negative)]"
-              : "text-[var(--color-positive)]"
-        }`}
-      >
-        {value === null ? "N/A" : formatRating(value)}
-      </span>
-      <span className="text-[10px] uppercase tracking-wide text-[var(--color-fg-faint)]">overall</span>
-    </span>
   );
 }

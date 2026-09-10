@@ -69,9 +69,12 @@ const mean = (nums: number[]): number | null =>
  *     goalies) => `incomplete` and the remaining weights are renormalised
  *     rather than scoring the gap as a 0.
  * Only ACTIVE/INJURED players count, matching the rest of the site. Pass
- * `since` to score off votes cast in that window only (week/month views).
+ * `since` to score off votes cast in that window only (week/month views),
+ * or `before` to score the ratings as they stood at a past moment.
  */
-export async function computeTeamRankings(opts: { since?: Date } = {}): Promise<TeamRanking[]> {
+export async function computeTeamRankings(
+  opts: { since?: Date; before?: Date } = {}
+): Promise<TeamRanking[]> {
   const [teams, players] = await Promise.all([
     prisma.team.findMany(),
     prisma.player.findMany({
@@ -80,7 +83,10 @@ export async function computeTeamRankings(opts: { since?: Date } = {}): Promise<
     }),
   ]);
 
-  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), { since: opts.since });
+  const voteMaps = await getVoteMapsForPlayers(players.map((p) => p.id), {
+    since: opts.since,
+    before: opts.before,
+  });
 
   const rosters = new Map<string, typeof players>();
   for (const p of players) {

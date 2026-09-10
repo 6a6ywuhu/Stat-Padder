@@ -49,8 +49,9 @@ export type WeeklyTeam = {
   name: string;
   logoLight: string;
   logoDark: string;
-  /** The team's community Overall rating (same figure as /team-rankings). */
-  overall: number | null;
+  /** How much the team's community Overall (the /team-rankings figure) has
+   *  climbed since Monday 00:00. */
+  weekRise: number;
   stats: WeeklyTeamStats | null;
 };
 
@@ -178,13 +179,21 @@ export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
     .sort((a, b) => b.delta - a.delta)
     .slice(0, LEADERBOARD_SIZE);
 
-  // Team board = the top teams by community Overall rating (the same
-  // figure the /team-rankings page shows), highest first.
-  const topTeams = (await getTeamRankings())
-    .slice()
-    .sort((a, b) => (b.overall ?? -Infinity) - (a.overall ?? -Infinity))
-    .slice(0, LEADERBOARD_SIZE)
-    .map((r) => ({ team: r.team, overall: r.overall }));
+  // Team board = biggest movers this week by community Overall rating:
+  // how far each team's Overall (the /team-rankings figure) has climbed
+  // since Monday 00:00.
+  const [teamNow, teamPrior] = await Promise.all([
+    getTeamRankings(),
+    getTeamRankings({ before: weekStart }),
+  ]);
+  const priorOverall = new Map(teamPrior.map((r) => [r.team.id, r.overall ?? 0]));
+  const topTeams = teamNow
+    .map((r) => ({
+      team: r.team,
+      weekRise: (r.overall ?? 0) - (priorOverall.get(r.team.id) ?? 0),
+    }))
+    .sort((a, b) => b.weekRise - a.weekRise)
+    .slice(0, LEADERBOARD_SIZE);
 
   const [playerStats, teamStats] = await Promise.all([
     Promise.all(topPlayers.map((x) => weeklyPlayerStats(x.player.nhlId, x.player.position, weekStartYmd))),
@@ -207,7 +216,7 @@ export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
     name: x.team.name,
     logoLight: x.team.logoLight,
     logoDark: x.team.logoDark,
-    overall: x.overall,
+    weekRise: x.weekRise,
     stats: teamStats[i],
   }));
 
