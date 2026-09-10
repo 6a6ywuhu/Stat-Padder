@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { getPlayerGameLogNow, getClubScheduleSeasonNow } from "./nhl-api";
 import { getVoteMapsForPlayers } from "./votes";
+import { getTeamRankings } from "./team-scores";
 import { overallScore } from "./scoring";
 import type { Position } from "./attributes";
 import { startOfWeek, ymd } from "./time-windows";
@@ -48,7 +49,8 @@ export type WeeklyTeam = {
   name: string;
   logoLight: string;
   logoDark: string;
-  delta: number;
+  /** The team's community Overall rating (same figure as /team-rankings). */
+  overall: number | null;
   stats: WeeklyTeamStats | null;
 };
 
@@ -129,10 +131,12 @@ async function weeklyTeamStats(abbrev: string, weekStartYmd: string): Promise<We
 }
 
 /**
- * Biggest risers since Monday — each board entry's `delta` is how much the
- * community's Overall rating for that player (or team) has climbed since
- * the start of the week: `overall(now) − overall(as of Monday 00:00)`.
- * Players are annotated with their real on-ice week from the NHL API.
+ * Home-page boards:
+ *  - players: biggest risers since Monday — `delta` is how much the
+ *    community's Overall for that player has climbed since the week's
+ *    start, `overall(now) − overall(as of Monday 00:00)`.
+ *  - teams: the top teams by current community Overall rating.
+ * Both are annotated with the real on-ice week from the NHL API.
  * Retired players are excluded, matching the rest of the site.
  *
  * Uncached on purpose — it reads votes straight from the DB so the home
@@ -174,29 +178,13 @@ export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
     .sort((a, b) => b.delta - a.delta)
     .slice(0, LEADERBOARD_SIZE);
 
-  const deltaByTeam = new Map<string, number>();
-  for (const p of voted) {
-    if (!p.teamId) continue;
-    deltaByTeam.set(p.teamId, (deltaByTeam.get(p.teamId) ?? 0) + (deltaByPlayer.get(p.id) ?? 0));
-  }
-
-  // The team board always shows 5 rows even on a quiet week — backfill with
-  // other teams at delta 0 if fewer than 5 saw any rating movement.
-  const teamRecords = await prisma.team.findMany({ where: { id: { in: [...deltaByTeam.keys()] } } });
-  let topTeams = teamRecords
-    .map((t) => ({ team: t, delta: deltaByTeam.get(t.id) ?? 0 }))
-    .filter((x) => x.delta > 0.05)
-    .sort((a, b) => b.delta - a.delta)
-    .slice(0, LEADERBOARD_SIZE);
-
-  if (topTeams.length < LEADERBOARD_SIZE) {
-    const filler = await prisma.team.findMany({
-      where: { id: { notIn: topTeams.map((x) => x.team.id) } },
-      orderBy: [{ city: "asc" }, { name: "asc" }],
-      take: LEADERBOARD_SIZE - topTeams.length,
-    });
-    topTeams = [...topTeams, ...filler.map((t) => ({ team: t, delta: 0 }))];
-  }
+  // Team board = the top teams by community Overall rating (the same
+  // figure the /team-rankings page shows), highest first.
+  const topTeams = (await getTeamRankings())
+    .slice()
+    .sort((a, b) => (b.overall ?? -Infinity) - (a.overall ?? -Infinity))
+    .slice(0, LEADERBOARD_SIZE)
+    .map((r) => ({ team: r.team, overall: r.overall }));
 
   const [playerStats, teamStats] = await Promise.all([
     Promise.all(topPlayers.map((x) => weeklyPlayerStats(x.player.nhlId, x.player.position, weekStartYmd))),
@@ -219,7 +207,7 @@ export async function getWeeklyLeaders(): Promise<WeeklyLeaders> {
     name: x.team.name,
     logoLight: x.team.logoLight,
     logoDark: x.team.logoDark,
-    delta: x.delta,
+    overall: x.overall,
     stats: teamStats[i],
   }));
 
