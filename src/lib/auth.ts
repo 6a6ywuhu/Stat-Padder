@@ -52,7 +52,12 @@ if (googleEnabled) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  // JWT strategy, 90-day idle expiry (Auth.js's default is 30 days) — the
+  // session cookie is persistent either way (survives closing the
+  // browser), this just keeps people signed in across longer gaps between
+  // visits. Auth.js re-issues the cookie on activity, so it's a rolling
+  // window, not a hard 90-day cutoff.
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 90 },
   pages: { signIn: "/login" },
   providers,
   callbacks: {

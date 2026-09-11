@@ -141,6 +141,7 @@ model User {
   votes         AttributeVote[]
   favorites     Favorite[]
   comments      Comment[]
+  resetTokens   PasswordResetToken[]
   createdAt     DateTime   @default(now())
 }
 
@@ -176,6 +177,21 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// "Forgot password" flow. Separate from VerificationToken (which Auth.js
+// reserves for its Email/magic-link provider — unused here) so the two
+// never collide if that provider is ever added. `token` stores a sha256
+// hash of the emailed value, never the raw token (see lib/password-reset.ts).
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Report {

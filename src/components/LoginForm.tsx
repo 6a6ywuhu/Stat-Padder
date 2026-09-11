@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { maybeSaveCredential } from "@/lib/save-credential";
 
 export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
@@ -25,6 +26,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
       setError("Incorrect email or password.");
       return;
     }
+    maybeSaveCredential(email, password);
     router.push(callbackUrl);
     router.refresh();
   }
@@ -72,6 +74,14 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           autoComplete="current-password"
           className="w-full rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] outline-none focus-visible:border-[var(--color-accent)]"
         />
+        <div className="text-right">
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         {error && <p className="text-sm text-[var(--color-negative)]">{error}</p>}
         <button
           type="submit"

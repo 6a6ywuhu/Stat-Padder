@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { maybeSaveCredential } from "@/lib/save-credential";
 
 export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
@@ -37,6 +38,7 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
         router.push("/login");
         return;
       }
+      maybeSaveCredential(email, password);
       router.push("/account");
       router.refresh();
     } catch {
