@@ -3,18 +3,37 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ATTRIBUTE_LABELS, BOOSTER_ATTRIBUTE_LABELS } from "@/lib/attributes";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
 import { SignOutButton } from "@/components/SignOutButton";
+import type { Player, Team } from "@prisma/client";
 
 export const metadata = { title: "Account — Stat Padder" };
 
-function labelFor(attribute: string): string {
-  return (
-    (ATTRIBUTE_LABELS as Record<string, string>)[attribute] ??
-    (BOOSTER_ATTRIBUTE_LABELS as Record<string, string>)[attribute] ??
-    attribute
-  );
+type PlayerVoteSummary = {
+  player: Player & { team: Team | null };
+  /** Distinct Submit actions on this player — same "N ratings" count used on player profiles. */
+  ratingCount: number;
+  lastVotedAt: Date;
+};
+
+/** One row per player instead of one per attribute vote — a single rating
+ * session touches up to 9 attributes at once, which flooded this list. */
+function groupByPlayer(
+  votes: { playerId: string; submissionId: string; createdAt: Date; player: Player & { team: Team | null } }[]
+): PlayerVoteSummary[] {
+  const byPlayer = new Map<string, { player: Player & { team: Team | null }; submissions: Set<string>; lastVotedAt: Date }>();
+  for (const v of votes) {
+    const existing = byPlayer.get(v.playerId);
+    if (existing) {
+      existing.submissions.add(v.submissionId);
+      if (v.createdAt > existing.lastVotedAt) existing.lastVotedAt = v.createdAt;
+    } else {
+      byPlayer.set(v.playerId, { player: v.player, submissions: new Set([v.submissionId]), lastVotedAt: v.createdAt });
+    }
+  }
+  return [...byPlayer.values()]
+    .map((v) => ({ player: v.player, ratingCount: v.submissions.size, lastVotedAt: v.lastVotedAt }))
+    .sort((a, b) => b.lastVotedAt.getTime() - a.lastVotedAt.getTime());
 }
 
 export default async function AccountPage() {
@@ -29,11 +48,13 @@ export default async function AccountPage() {
     }),
     prisma.attributeVote.findMany({
       where: { userId: session.user.id },
-      include: { player: true },
+      select: { playerId: true, submissionId: true, createdAt: true, player: { include: { team: true } } },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 500,
     }),
   ]);
+
+  const playerVotes = groupByPlayer(votes);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -103,34 +124,45 @@ export default async function AccountPage() {
         <p className="mb-3 text-xs text-[var(--color-fg-muted)]">
           Private to you — votes never show who cast them anywhere else on the site.
         </p>
-        {votes.length === 0 ? (
+        {playerVotes.length === 0 ? (
           <p className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-card)] p-4 text-sm text-[var(--color-fg-muted)]">
             You haven&apos;t voted on anything yet.
           </p>
         ) : (
           <div className="divide-y divide-[var(--color-border)] rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-card)] px-4">
-            {votes.map((v) => (
-              <div key={v.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <div className="min-w-0">
-                  <Link href={`/players/${v.playerId}`} className="font-medium text-[var(--color-fg)] hover:underline">
-                    {v.player.firstName} {v.player.lastName}
-                  </Link>
-                  <span className="text-[var(--color-fg-muted)]"> · {labelFor(v.attribute)}</span>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span
-                    className={`font-display font-bold tabular-nums ${
-                      v.value > 0 ? "text-[var(--color-positive)]" : "text-[var(--color-negative)]"
-                    }`}
-                  >
-                    {v.value > 0 ? "+1" : "−1"}
-                  </span>
-                  <span className="text-xs text-[var(--color-fg-faint)]">
-                    {new Date(v.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {playerVotes.map((pv) => {
+              const portrait =
+                pixelProfileFor(pv.player.firstName, pv.player.lastName, pv.player.position) ??
+                pv.player.headshotUrl;
+              return (
+                <Link
+                  key={pv.player.id}
+                  href={`/players/${pv.player.id}`}
+                  className="-mx-4 flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--color-bg-subtle)]"
+                >
+                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border-2 border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)]">
+                    {portrait && <Image src={portrait} alt="" fill unoptimized className="object-cover" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-[var(--color-fg)]">
+                      {pv.player.firstName} {pv.player.lastName}
+                    </p>
+                    <p className="truncate text-xs text-[var(--color-fg-muted)]">
+                      {pv.player.position}
+                      {pv.player.team ? ` · ${pv.player.team.id}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-0.5">
+                    <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+                      {pv.ratingCount} {pv.ratingCount === 1 ? "rating" : "ratings"}
+                    </span>
+                    <span className="text-xs text-[var(--color-fg-faint)]">
+                      {pv.lastVotedAt.toLocaleDateString()}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
