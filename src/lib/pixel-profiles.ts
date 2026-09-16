@@ -3,6 +3,20 @@
  * place of the NHL headshot photo on their profile. Add a file to that
  * folder and its slug here to enable another player. */
 
+/**
+ * Vercel serves everything under public/ with `Cache-Control: public,
+ * max-age=31536000, immutable` — a full year, no revalidation. Swapping a
+ * file's bytes under the same filename (re-exporting an existing
+ * player's portrait) is invisible to anyone whose browser already
+ * cached that URL; it won't even ask the server. Bump this string
+ * whenever ANY file in public/pixel-profiles/ changes — it's appended
+ * to every portrait URL as a query param, so an updated portrait gets a
+ * new URL and is fetched fresh instead of served stale. New players
+ * (a brand-new slug, never previously cached by anyone) don't strictly
+ * need it, but there's no harm bumping it for those too.
+ */
+const PORTRAIT_ASSET_VERSION = "2026-09-16";
+
 const PIXEL_PROFILE_SLUGS = new Set([
   "a-j-greer",
   "aatu-raty",
@@ -125,7 +139,7 @@ export function pixelProfileForName(name: string, position?: string | null): str
   const slug = slugify(name);
   const positional = position ? POSITIONAL_PIXEL_SLUGS[slug]?.[position] : undefined;
   if (positional && PIXEL_PROFILE_SLUGS.has(positional)) {
-    return `/pixel-profiles/${positional}.png`;
+    return `/pixel-profiles/${positional}.png?v=${PORTRAIT_ASSET_VERSION}`;
   }
-  return PIXEL_PROFILE_SLUGS.has(slug) ? `/pixel-profiles/${slug}.png` : null;
+  return PIXEL_PROFILE_SLUGS.has(slug) ? `/pixel-profiles/${slug}.png?v=${PORTRAIT_ASSET_VERSION}` : null;
 }
