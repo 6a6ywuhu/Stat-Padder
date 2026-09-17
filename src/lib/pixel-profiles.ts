@@ -15,7 +15,7 @@
  * (a brand-new slug, never previously cached by anyone) don't strictly
  * need it, but there's no harm bumping it for those too.
  */
-const PORTRAIT_ASSET_VERSION = "2026-09-16";
+const PORTRAIT_ASSET_VERSION = "2026-09-17";
 
 const PIXEL_PROFILE_SLUGS = new Set([
   "a-j-greer",
@@ -40,6 +40,7 @@ const PIXEL_PROFILE_SLUGS = new Set([
   "connor-mcdavid",
   "cutter-gauthier",
   "david-pastrnak",
+  "drake-batherson",
   "dylan-guenther",
   "dylan-larkin",
   "elias-pettersson",
@@ -58,7 +59,9 @@ const PIXEL_PROFILE_SLUGS = new Set([
   "jake-guentzel",
   "jakub-dobes",
   "jason-robertson",
+  "jesper-bratt",
   "jesperi-kotkaniemi",
+  "john-tavares",
   "jordan-binnington",
   "juraj-slafkovsky",
   "kevin-lankinen",
@@ -67,21 +70,28 @@ const PIXEL_PROFILE_SLUGS = new Set([
   "lane-hutson",
   "leo-carlsson",
   "leon-draisaitl",
+  "lucas-raymond",
   "luke-hughes",
   "macklin-celebrini",
   "mark-scheifele",
   "mark-stone",
   "martin-necas",
+  "mathew-barzal", // uploaded as "Matthew Barzal" — the real NHL spelling is one t
+  "matt-boldy",
+  "matthew-schaefer",
   "matthew-tkachuk",
   "mattias-ekholm",
   "matvei-michkov",
+  "mika-zibanejad",
   "mike-matheson",
   "mikko-rantanen",
   "mitch-marner",
   "moritz-seider",
   "nathan-mackinnon",
+  "nick-schmaltz",
   "nick-suzuki",
   "nikita-kucherov",
+  "nikolaj-ehlers",
   "noah-dobson",
   "owen-power",
   "quinn-hughes",
