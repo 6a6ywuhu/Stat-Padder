@@ -72,24 +72,31 @@ export async function getPlayerSnapshot(playerId: string): Promise<PlayerSnapsho
   };
 }
 
-/** Auto-written caption, using the numbers as they are right now. */
+/** A team's hashtags: its nickname and city + nickname, e.g. #stars #dallasstars. */
+export function teamHashtags(nickname: string | null, fullName: string | null): string[] {
+  const tags = [nickname, fullName].filter((x): x is string => !!x).map((x) => `#${normName(x)}`);
+  return [...new Set(tags)];
+}
+
+/**
+ * Auto-written caption, using the numbers as they are right now. It never says
+ * how many people have rated — the post image already shows that.
+ */
 export function buildCaption(s: PlayerSnapshot): string {
   const full = `${s.firstName} ${s.lastName}`;
-  const n = s.ratings;
 
   let hook: string;
   if (s.overall === null) {
     hook = `Nobody on Stat Padder has rated ${s.lastName} yet. Be the first.`;
   } else if (s.baselineOnly) {
-    hook = `${full}'s stats-based starting rating is ${formatRating(s.overall)} Overall, and nobody in the community has rated him yet. Think it's right? Be the first to rate.`;
-  } else if (n < MIN_RATINGS_TO_QUOTE) {
-    hook = `Only ${n} community ${n === 1 ? "rating" : "ratings"} on ${full} so far, so your vote would move the number a lot.`;
+    hook = `${full}'s stats-based starting rating is ${formatRating(s.overall)} Overall. Think it's right? Be the first to rate.`;
+  } else if (s.ratings < MIN_RATINGS_TO_QUOTE) {
+    hook = `The community has ${full} at ${formatRating(s.overall)} Overall so far, and your vote moves that number a lot.`;
   } else {
-    hook = `The community has ${full} at ${formatRating(s.overall)} Overall across ${n} ratings. Right or wrong?`;
+    hook = `The community has ${full} at ${formatRating(s.overall)} Overall. Right or wrong?`;
   }
 
-  const teamTag = s.teamName ? `#${s.teamName.replace(/[^A-Za-z0-9]/g, "")}` : "";
-  const tags = ["#NHL", "#statpadder", "#NHLrankings", teamTag].filter(Boolean).join(" ");
+  const tags = [...teamHashtags(s.teamName, s.teamFullName), "#NHL", "#statpadder", "#NHLrankings"].join(" ");
 
   return [
     hook,

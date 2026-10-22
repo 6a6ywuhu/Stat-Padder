@@ -3,7 +3,7 @@ import { getCurrentSeasonId, getSkaterSummary } from "./nhl-api";
 import { scoreGroupUncached } from "./group-scores";
 import { SKATER_POSITIONS } from "./attributes";
 import { formatRating } from "./scoring";
-import { SOCIAL_TZ } from "./social";
+import { SOCIAL_TZ, teamHashtags } from "./social";
 
 /** Last week's top scorers, ready to render as a card and write as a caption. */
 export type WeeklyRow = {
@@ -32,6 +32,8 @@ export type WeeklyLeaders = {
   /** e.g. "OCT 12–18" */
   label: string;
   rows: WeeklyRow[];
+  /** Nickname hashtags for the five players' teams, e.g. ["#oilers", "#panthers"]. */
+  teamTags: string[];
 };
 
 const DAY = 24 * 3600 * 1000;
@@ -126,7 +128,11 @@ export async function getWeeklyLeaders(weekStart: string): Promise<WeeklyLeaders
     };
   });
 
-  return { weekStart, weekEnd, label: weekLabel(weekStart), rows };
+  const teams = await prisma.team.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.team))] } }, select: { id: true, name: true } });
+  const nick = new Map(teams.map((t) => [t.id, t.name]));
+  const teamTags = [...new Set(rows.flatMap((r) => teamHashtags(nick.get(r.team) ?? null, null)))];
+
+  return { weekStart, weekEnd, label: weekLabel(weekStart), rows, teamTags };
 }
 
 export function buildWeeklyCaption(w: WeeklyLeaders): string {
@@ -142,6 +148,6 @@ export function buildWeeklyCaption(w: WeeklyLeaders): string {
     "",
     "Do the ratings match the production? Rate every skill from −100 to +100. No signup needed to start. statpadder.ca (link in bio)",
     "",
-    "#NHL #statpadder #NHLrankings #hockey",
+    [...w.teamTags, "#NHL", "#statpadder", "#NHLrankings", "#hockey"].join(" "),
   ].join("\n");
 }
