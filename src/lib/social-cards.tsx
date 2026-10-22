@@ -31,12 +31,24 @@ function teamColors(d: CardData) {
   return { primary, fg: readableTextColor(primary) };
 }
 
-/** Instagram Stories are 9:16. The card sits centred on a dark ground, clear of the app's top and bottom bars. */
+/**
+ * Instagram Stories are 9:16. The card sits centred on a dark ground, clear of
+ * the app's top and bottom bars. The API can't attach a link to a Story, so the
+ * margins carry a plain-text pointer to the new feed post instead.
+ */
 export const STORY_H = 1920;
 export function storyFrame(card: ReactNode, ground: string = INK) {
+  const margin = (H === 1350 ? STORY_H - H : 0) / 2;
+  const text = { display: "flex", fontFamily: "Jersey 10", color: STOCK, letterSpacing: 7 } as const;
   return (
-    <div style={{ width: W, height: STORY_H, display: "flex", alignItems: "center", justifyContent: "center", background: ground }}>
+    <div style={{ width: W, height: STORY_H, display: "flex", flexDirection: "column", alignItems: "center", background: ground }}>
+      <div style={{ display: "flex", height: margin, alignItems: "flex-end", justifyContent: "center", paddingBottom: 26 }}>
+        <div style={{ ...text, fontSize: 38 }}>↑  NEW POST  ·  TAP OUR NAME TO SEE IT</div>
+      </div>
       {card}
+      <div style={{ display: "flex", height: margin, alignItems: "flex-start", justifyContent: "center", paddingTop: 30 }}>
+        <div style={{ ...text, fontSize: 34, opacity: 0.75 }}>STATPADDER.CA</div>
+      </div>
     </div>
   );
 }
@@ -116,7 +128,7 @@ function ratingRow(label: string, value: number | null, colors: [string, string]
   );
 }
 
-export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE" | "TAP" = "SWIPE") {
+export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE" | "POST" = "SWIPE") {
   const { primary, fg } = teamColors(d);
   const s = d.snap;
   const photo = d.isGoalie ? 380 : 490;
@@ -173,7 +185,7 @@ export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE
         >
           {cta}
         </div>
-        <div style={{ display: "flex", fontSize: 28, letterSpacing: 7, color: MUTED }}>{nextHint} FOR THE STATS  →</div>
+        <div style={{ display: "flex", fontSize: 28, letterSpacing: 7, color: MUTED }}>{nextHint === "POST" ? "FULL STATS ON THE POST  ↑" : "SWIPE FOR THE STATS  →"}</div>
       </div>
     </div>
   );

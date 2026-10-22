@@ -23,7 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
   const portrait = await portraitDataUri(pixelProfileFor(s.firstName, s.lastName, s.position) ?? s.headshotUrl, url.origin);
 
   const story = url.searchParams.get("story") === "1";
-  const card = slide === 2 ? backCard(data, portrait) : frontCard(data, portrait, story ? "TAP" : "SWIPE");
+  const card = slide === 2 ? backCard(data, portrait) : frontCard(data, portrait, story ? "POST" : "SWIPE");
   const image = new ImageResponse(story ? storyFrame(card) : card, {
     width: CARD_W,
     height: story ? STORY_H : CARD_H,
