@@ -15,6 +15,11 @@ export function weeklyEnabled(): boolean {
   return process.env.SOCIAL_WEEKLY_ENABLED !== "false";
 }
 
+/** Stories are off unless SOCIAL_STORIES_ENABLED=true. */
+export function storiesEnabled(): boolean {
+  return process.env.SOCIAL_STORIES_ENABLED === "true";
+}
+
 export function publishingEnabled(): boolean {
   return process.env.SOCIAL_PUBLISH_ENABLED === "true";
 }
@@ -197,13 +202,17 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
         where: { id: post.id },
         data: { status: "POSTED", externalId: mediaId, postedAt: new Date(), error: null },
       });
-      const stories = await postStories(post.id, imageUrls);
-      results.push({
-        id: post.id,
-        player: label,
-        action: "posted",
-        detail: `${mediaId} · ${stories.ids.length} ${stories.ids.length === 1 ? "story" : "stories"}${stories.error ? ` (stories stopped: ${stories.error})` : ""}`,
-      });
+      if (storiesEnabled()) {
+        const stories = await postStories(post.id, imageUrls);
+        results.push({
+          id: post.id,
+          player: label,
+          action: "posted",
+          detail: `${mediaId} · ${stories.ids.length} ${stories.ids.length === 1 ? "story" : "stories"}${stories.error ? ` (stories stopped: ${stories.error})` : ""}`,
+        });
+      } else {
+        results.push({ id: post.id, player: label, action: "posted", detail: mediaId });
+      }
     } catch (e) {
       const message = ((e as Error).message ?? "unknown error").slice(0, 500);
       await prisma.socialPost.update({ where: { id: post.id }, data: { status: "FAILED", error: message } });
