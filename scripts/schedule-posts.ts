@@ -7,6 +7,9 @@
  *   npm run social -- approve <id|all> let a DRAFT go out when it is due
  *   npm run social -- unapprove <id>   put an APPROVED post back to DRAFT
  *   npm run social -- cancel <id>      delete a post that hasn't gone out
+ *   npm run social -- publish          show what is due right now (posts nothing)
+ *   npm run social -- publish --live   actually post what is due (needs SOCIAL_PUBLISH_ENABLED=true)
+ *   npm run social -- retry <id>       re-queue a FAILED post (check Instagram first that it didn't go out)
  *
  * Schedule file (default social/schedule.txt), one post per line, times in Vancouver:
  *   2026-10-23 09:00 | Sam Reinhart
@@ -19,6 +22,7 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { prisma } from "../src/lib/prisma";
+import { publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
 import {
   SOCIAL_TZ,
   buildCaption,
@@ -164,6 +168,24 @@ async function main() {
       if (!arg) throw new Error("unapprove needs a post id");
       await setStatus(arg, ["APPROVED"], "DRAFT");
       break;
+    case "retry":
+      if (!arg) throw new Error("retry needs a post id");
+      await setStatus(arg, ["FAILED"], "APPROVED");
+      break;
+    case "publish": {
+      const live = process.argv.includes("--live");
+      if (live && !publishingEnabled()) throw new Error("Refusing to post: set SOCIAL_PUBLISH_ENABLED=true first.");
+      const { results, token } = await runDuePosts({ dryRun: !live });
+      console.log(live ? "LIVE run" : "DRY run — nothing is posted");
+      if (token) console.log("token:", token);
+      if (!results.length) console.log("Nothing due.");
+      for (const r of results) {
+        console.log(`\n${r.action.toUpperCase()}  ${r.player}  ${r.id}${r.detail ? `  (${r.detail})` : ""}`);
+        if (r.imageUrl) console.log("  image:", r.imageUrl);
+        if (r.caption) console.log("  " + r.caption.replace(/\n/g, "\n  "));
+      }
+      break;
+    }
     case "cancel": {
       if (!arg) throw new Error("cancel needs a post id");
       const r = await prisma.socialPost.deleteMany({ where: { id: arg, status: { in: ["DRAFT", "APPROVED", "FAILED"] } } });
@@ -171,7 +193,7 @@ async function main() {
       break;
     }
     default:
-      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id>");
+      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | publish [--live]");
   }
 }
 

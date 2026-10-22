@@ -122,6 +122,20 @@ model SocialPost {
   @@index([playerId])
 }
 
+/**
+ * The current access token for a social channel. Instagram tokens last 60
+ * days and must be refreshed before then, so the refreshed value has to live
+ * somewhere writable — an environment variable can't update itself. The
+ * INSTAGRAM_ACCESS_TOKEN env var only seeds this row the first time.
+ */
+model SocialAuth {
+  channel     String    @id // "instagram"
+  accessToken String
+  expiresAt   DateTime?
+  refreshedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
 // One row per person who's ever left a player's watchlist star, or a
 // comment — both require an account (unlike voting, which stays anonymous).
 model Favorite {

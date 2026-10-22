@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { getPlayerSnapshot } from "@/lib/social";
 import { formatRating } from "@/lib/scoring";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
@@ -34,7 +35,7 @@ async function portraitDataUri(src: string | null, origin: string): Promise<stri
   }
 }
 
-/** 1080×1350 "rate this player" card for Instagram. Public data only. */
+/** 1080×1350 "rate this player" card for Instagram. Public data only. PNG by default, JPEG with ?format=jpg. */
 export async function GET(req: Request, { params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
   const [snap, font] = await Promise.all([getPlayerSnapshot(playerId), loadFont()]);
@@ -50,12 +51,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
   const overall = snap.overall === null ? "—" : formatRating(snap.overall);
   const name = `${snap.firstName} ${snap.lastName}`;
   const meta = `${snap.position}${snap.teamId ? ` · ${snap.teamId}` : ""}`;
+  const cta = `YOUR VOTE MOVES THIS — RATE ${snap.firstName.toUpperCase()}`;
   const countLine =
     ratings === 0
       ? "No ratings yet — be the first"
       : `${ratings} ${ratings === 1 ? "rating" : "ratings"} so far`;
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -114,12 +116,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
             padding: "20px 44px",
             background: RED,
             color: "#ffffff",
-            fontSize: 52,
+            fontSize: Math.min(52, Math.floor(1680 / cta.length)),
             letterSpacing: 4,
             borderRadius: 6,
+            justifyContent: "center",
+            whiteSpace: "nowrap",
           }}
         >
-          {`YOUR VOTE MOVES THIS — RATE ${snap.firstName.toUpperCase()}`}
+          {cta}
         </div>
         <div style={{ display: "flex", marginTop: 24, fontSize: 34, letterSpacing: 10, color: MUTED }}>
           STATPADDER.CA
@@ -128,4 +132,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
     ),
     { width: W, height: H, fonts: [{ name: "Jersey 10", data: font, style: "normal", weight: 400 }] }
   );
+
+  // Instagram's publishing API accepts JPEG only.
+  if (new URL(req.url).searchParams.get("format") === "jpg") {
+    const png = Buffer.from(await image.arrayBuffer());
+    const jpg = await sharp(png).flatten({ background: "#f1f6f4" }).jpeg({ quality: 92 }).toBuffer();
+    return new Response(new Uint8Array(jpg), {
+      headers: { "content-type": "image/jpeg", "cache-control": "no-store" },
+    });
+  }
+  return image;
 }
