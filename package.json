@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "tsx scripts/migrate-libsql.ts",
-    "sync": "tsx scripts/sync-nhl-data.ts"
+    "sync": "tsx scripts/sync-nhl-data.ts",
+    "social": "tsx scripts/schedule-posts.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

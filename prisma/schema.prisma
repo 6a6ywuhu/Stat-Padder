@@ -51,6 +51,7 @@ model Player {
   reports       Report[]
   favorites     Favorite[]
   comments      Comment[]
+  socialPosts   SocialPost[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -95,6 +96,30 @@ model AttributeVote {
   // filter AttributeVote by createdAt with no other narrowing column.
   @@index([createdAt])
   @@index([playerId, createdAt])
+}
+
+/**
+ * A scheduled social post about one player. The card image and the caption
+ * numbers are rendered live at publish time, so `captionOverride` is only set
+ * when a human wants to replace the auto-written caption.
+ * status: DRAFT (needs approval) → APPROVED (will post when due) → POSTED | FAILED.
+ */
+model SocialPost {
+  id              String    @id @default(cuid())
+  playerId        String
+  player          Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  channel         String    @default("instagram")
+  scheduledFor    DateTime
+  status          String    @default("DRAFT")
+  captionOverride String?
+  externalId      String?   // the platform's media id once posted
+  postedAt        DateTime?
+  error           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([playerId])
 }
 
 // One row per person who's ever left a player's watchlist star, or a

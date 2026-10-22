@@ -1,12 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { prisma } from "@/lib/prisma";
-import { scorePlayerUncached } from "@/lib/group-scores";
-import { countRatingsForPlayer } from "@/lib/votes";
+import { getPlayerSnapshot } from "@/lib/social";
 import { formatRating } from "@/lib/scoring";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
-import { SKATER_POSITIONS, Position, SkaterPosition } from "@/lib/attributes";
 
 export const runtime = "nodejs";
 
@@ -40,34 +37,19 @@ async function portraitDataUri(src: string | null, origin: string): Promise<stri
 /** 1080×1350 "rate this player" card for Instagram. Public data only. */
 export async function GET(req: Request, { params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
-  const player = await prisma.player.findUnique({ where: { id: playerId }, include: { team: true } });
-  if (!player) return new Response("Player not found", { status: 404 });
-
-  const position = player.position as Position;
-  const isGoalie = position === "G";
-
-  const [scored, ratings, font] = await Promise.all([
-    scorePlayerUncached(
-      player.id,
-      isGoalie
-        ? { kind: "goalie" }
-        : { kind: "skater", positions: SKATER_POSITIONS as SkaterPosition[] },
-      player.status === "RETIRED" ? ["RETIRED"] : ["ACTIVE", "INJURED"]
-    ),
-    countRatingsForPlayer(player.id),
-    loadFont(),
-  ]);
+  const [snap, font] = await Promise.all([getPlayerSnapshot(playerId), loadFont()]);
+  if (!snap) return new Response("Player not found", { status: 404 });
 
   const origin = new URL(req.url).origin;
   const portrait = await portraitDataUri(
-    pixelProfileFor(player.firstName, player.lastName, player.position) ?? player.headshotUrl,
+    pixelProfileFor(snap.firstName, snap.lastName, snap.position) ?? snap.headshotUrl,
     origin
   );
 
-  const hasVotes = ratings > 0 && scored;
-  const overall = hasVotes ? formatRating(scored.overallValue) : "—";
-  const name = `${player.firstName} ${player.lastName}`;
-  const meta = `${player.position}${player.team ? ` · ${player.team.id}` : ""}`;
+  const ratings = snap.ratings;
+  const overall = snap.overall === null ? "—" : formatRating(snap.overall);
+  const name = `${snap.firstName} ${snap.lastName}`;
+  const meta = `${snap.position}${snap.teamId ? ` · ${snap.teamId}` : ""}`;
   const countLine =
     ratings === 0
       ? "No ratings yet — be the first"
@@ -137,7 +119,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
             borderRadius: 6,
           }}
         >
-          {`YOUR VOTE MOVES THIS — RATE ${player.firstName.toUpperCase()}`}
+          {`YOUR VOTE MOVES THIS — RATE ${snap.firstName.toUpperCase()}`}
         </div>
         <div style={{ display: "flex", marginTop: 24, fontSize: 34, letterSpacing: 10, color: MUTED }}>
           STATPADDER.CA
