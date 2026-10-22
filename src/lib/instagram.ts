@@ -74,33 +74,59 @@ export async function refreshTokenIfDue(): Promise<{ refreshed: boolean; note: s
   }
 }
 
-/** Publishes one JPEG photo and returns Instagram's media id. */
-export async function publishPhoto(opts: { imageUrl: string; caption: string }): Promise<string> {
-  const token = await getAccessToken();
-  const user = igUserId();
-
-  const container = await graph<{ id: string }>("POST", `${user}/media`, {
-    image_url: opts.imageUrl,
-    caption: opts.caption,
-    access_token: token,
-  });
-
+async function waitUntilReady(containerId: string, token: string): Promise<void> {
   // Meta fetches the image itself; wait until it says it's ready.
   for (let i = 0; i < 20; i++) {
-    const s = await graph<{ status_code?: string }>("GET", container.id, {
-      fields: "status_code",
-      access_token: token,
-    });
-    if (s.status_code === "FINISHED") break;
+    const s = await graph<{ status_code?: string }>("GET", containerId, { fields: "status_code", access_token: token });
+    if (s.status_code === "FINISHED") return;
     if (s.status_code === "ERROR" || s.status_code === "EXPIRED") {
       throw new InstagramError(`Instagram could not process the image (${s.status_code})`);
     }
-    if (i === 19) throw new InstagramError("Instagram took too long to process the image");
     await new Promise((r) => setTimeout(r, 3000));
   }
+  throw new InstagramError("Instagram took too long to process the image");
+}
 
+/**
+ * Publishes JPEG image(s) and returns Instagram's media id: a single photo for
+ * one URL, a swipeable carousel (2–10) for several.
+ */
+export async function publishMedia(opts: { imageUrls: string[]; caption: string }): Promise<string> {
+  const token = await getAccessToken();
+  const user = igUserId();
+  if (opts.imageUrls.length === 0) throw new InstagramError("No images to post");
+
+  let creationId: string;
+  if (opts.imageUrls.length === 1) {
+    const c = await graph<{ id: string }>("POST", `${user}/media`, {
+      image_url: opts.imageUrls[0],
+      caption: opts.caption,
+      access_token: token,
+    });
+    creationId = c.id;
+  } else {
+    const children: string[] = [];
+    for (const imageUrl of opts.imageUrls) {
+      const child = await graph<{ id: string }>("POST", `${user}/media`, {
+        image_url: imageUrl,
+        is_carousel_item: "true",
+        access_token: token,
+      });
+      await waitUntilReady(child.id, token);
+      children.push(child.id);
+    }
+    const parent = await graph<{ id: string }>("POST", `${user}/media`, {
+      media_type: "CAROUSEL",
+      children: children.join(","),
+      caption: opts.caption,
+      access_token: token,
+    });
+    creationId = parent.id;
+  }
+
+  await waitUntilReady(creationId, token);
   const published = await graph<{ id: string }>("POST", `${user}/media_publish`, {
-    creation_id: container.id,
+    creation_id: creationId,
     access_token: token,
   });
   return published.id;

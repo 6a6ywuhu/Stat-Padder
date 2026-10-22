@@ -26,7 +26,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { writeFileSync } from "node:fs";
 import { prisma } from "../src/lib/prisma";
-import { pixelProfileFor } from "../src/lib/pixel-profiles";
+import { rankedCandidates } from "../src/lib/social-planner";
 import { buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "../src/lib/social-weekly";
 import { publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
 import {
@@ -154,23 +154,11 @@ async function plan() {
   const includeMondays = process.argv.includes("--include-mondays");
   let day = flag("start") ?? addDaysYmd(todayInSocialTz(), 1);
 
-  const used = new Set(
-    (await prisma.socialPost.findMany({ where: { kind: "PLAYER", playerId: { not: null } }, select: { playerId: true } })).map((p) => p.playerId!)
-  );
   const players = await prisma.player.findMany({
     where: { status: { in: ["ACTIVE", "INJURED"] } },
     select: { id: true, firstName: true, lastName: true, position: true },
   });
-  const votes = await prisma.attributeVote.groupBy({ by: ["playerId"], _count: { _all: true } });
-  const voteCount = new Map(votes.map((v) => [v.playerId, v._count._all]));
-
-  const candidates = players
-    .filter((p) => !used.has(p.id) && pixelProfileFor(p.firstName, p.lastName, p.position))
-    .map((p) => ({ ...p, n: voteCount.get(p.id) ?? 0 }));
-  // Ties (most players have the same rating count) are shuffled by a stable hash of
-  // the player id, so the feed mixes positions and teams instead of running A–Z.
-  const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-  candidates.sort((a, b) => (order === "top" ? b.n - a.n : a.n - b.n) || hash(a.id) - hash(b.id));
+  const candidates = (await rankedCandidates(order === "top" ? "top" : "fewest")).map((c) => ({ ...c, n: c.votes }));
 
   const names = new Map<string, number>();
   for (const p of players) names.set(`${p.firstName} ${p.lastName}`, (names.get(`${p.firstName} ${p.lastName}`) ?? 0) + 1);

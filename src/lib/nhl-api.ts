@@ -135,6 +135,24 @@ export type NhlGoalieSubSeason = {
   shutouts: number;
 };
 
+export type NhlSeasonTotal = {
+  season: number;
+  gameTypeId: number;
+  leagueAbbrev: string;
+  teamCommonName?: { default: string };
+  gamesPlayed: number;
+  goals?: number;
+  assists?: number;
+  points?: number;
+  plusMinus?: number;
+  wins?: number;
+  losses?: number;
+  otLosses?: number;
+  goalsAgainstAvg?: number;
+  savePctg?: number;
+  shutouts?: number;
+};
+
 export type NhlPlayerLanding = {
   playerId: number;
   isActive: boolean;
@@ -146,10 +164,15 @@ export type NhlPlayerLanding = {
   weightInPounds: number;
   birthDate: string;
   birthCountry: string;
+  birthCity?: { default: string };
+  shootsCatches?: string;
+  draftDetails?: { year: number; teamAbbrev: string; round: number; overallPick: number };
   featuredStats?: {
     season: number;
     regularSeason?: { subSeason?: Partial<NhlSkaterSubSeason & NhlGoalieSubSeason> };
   };
+  seasonTotals?: NhlSeasonTotal[];
+  careerTotals?: { regularSeason?: Partial<NhlSeasonTotal> };
 };
 
 export async function getPlayerLanding(nhlId: number, revalidateSeconds = 3600) {

@@ -1,7 +1,9 @@
 import { prisma } from "./prisma";
 import { buildCaption, getPlayerSnapshot } from "./social";
-import { buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "./social-weekly";
-import { publishPhoto, refreshTokenIfDue } from "./instagram";
+import { addDays, buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "./social-weekly";
+import { dailyAutoEnabled, rankedCandidates } from "./social-planner";
+import { zonedToUtc } from "./social";
+import { publishMedia, refreshTokenIfDue } from "./instagram";
 
 /** Posts per run — a catch-up after a missed day shouldn't flood the feed. */
 const MAX_PER_RUN = 3;
@@ -61,6 +63,34 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
     }
   }
 
+  // Other days: if nothing is already lined up for today, pick the next player automatically.
+  const todayYmd = todayInSocialTz(now);
+  if (dailyAutoEnabled() && weekdayOf(todayYmd) !== 1) {
+    const lined = await prisma.socialPost.findFirst({
+      where: {
+        kind: "PLAYER",
+        status: { not: "DRAFT" },
+        scheduledFor: { gte: zonedToUtc(todayYmd, "00:00"), lt: zonedToUtc(addDays(todayYmd, 1), "00:00") },
+      },
+    });
+    if (!lined) {
+      const next = (await rankedCandidates("fewest"))[0];
+      if (!next) {
+        results.push({ id: "-", player: "Daily player", action: "skipped", detail: "every eligible player has already been posted" });
+      } else {
+        if (!opts.dryRun) {
+          await prisma.socialPost.create({ data: { kind: "PLAYER", playerId: next.id, scheduledFor: now, status: "APPROVED" } });
+        }
+        results.push({
+          id: "-",
+          player: `${next.firstName} ${next.lastName}`,
+          action: opts.dryRun ? "would post" : "scheduled",
+          detail: "auto-picked for today",
+        });
+      }
+    }
+  }
+
   const due = await prisma.socialPost.findMany({
     where: { status: "APPROVED", channel: "instagram", scheduledFor: { lte: now } },
     include: { player: { select: { firstName: true, lastName: true } } },
@@ -88,7 +118,7 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
     handled++;
 
     let caption: string;
-    let imageUrl: string;
+    let imageUrls: string[];
     if (post.kind === "WEEKLY") {
       const weekly = post.weekStart ? await getWeeklyLeaders(post.weekStart).catch(() => null) : null;
       if (!weekly) {
@@ -99,7 +129,7 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
         continue;
       }
       caption = post.captionOverride ?? buildWeeklyCaption(weekly);
-      imageUrl = `${siteUrl()}/api/social/weekly-card?week=${post.weekStart}&format=jpg&t=${now.getTime()}`;
+      imageUrls = [`${siteUrl()}/api/social/weekly-card?week=${post.weekStart}&format=jpg&t=${now.getTime()}`];
     } else {
       const snap = post.playerId ? await getPlayerSnapshot(post.playerId) : null;
       if (!snap) {
@@ -108,11 +138,12 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
         continue;
       }
       caption = post.captionOverride ?? buildCaption(snap);
-      imageUrl = `${siteUrl()}/api/social/card/${post.playerId}?format=jpg&t=${now.getTime()}`;
+      // Slide 1: the card front with ratings; slide 2: the back with NHL stats.
+      imageUrls = [1, 2].map((n) => `${siteUrl()}/api/social/card/${post.playerId}?format=jpg&slide=${n}&t=${now.getTime()}`);
     }
 
     if (opts.dryRun) {
-      results.push({ id: post.id, player: label, action: "would post", caption, imageUrl });
+      results.push({ id: post.id, player: label, action: "would post", caption, imageUrl: imageUrls.join("\n     ") });
       continue;
     }
 
@@ -126,7 +157,7 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
     }
 
     try {
-      const mediaId = await publishPhoto({ imageUrl, caption });
+      const mediaId = await publishMedia({ imageUrls, caption });
       await prisma.socialPost.update({
         where: { id: post.id },
         data: { status: "POSTED", externalId: mediaId, postedAt: new Date(), error: null },

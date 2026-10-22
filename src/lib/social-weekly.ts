@@ -39,7 +39,7 @@ function ymdParts(ymd: string) {
   return { y, m, d };
 }
 
-function addDays(ymd: string, n: number): string {
+export function addDays(ymd: string, n: number): string {
   const { y, m, d } = ymdParts(ymd);
   return new Date(Date.UTC(y, m - 1, d) + n * DAY).toISOString().slice(0, 10);
 }
@@ -118,7 +118,7 @@ export async function getWeeklyLeaders(weekStart: string): Promise<WeeklyLeaders
 export function buildWeeklyCaption(w: WeeklyLeaders): string {
   const lines = w.rows.map((r) => {
     const overall = r.overall === null ? "not rated yet" : `community Overall ${formatRating(r.overall)}`;
-    return `${r.rank}. ${r.firstName} ${r.lastName} — ${r.points} PTS in ${r.gamesPlayed} GP (${overall})`;
+    return `${r.rank}. ${r.firstName} ${r.lastName} — ${r.points} PTS (${r.goals}G ${r.assists}A) in ${r.gamesPlayed} GP — ${overall}`;
   });
   return [
     `The NHL's top 5 scorers last week (${w.label.replace("–", "-")}), and how the Stat Padder community rates them:`,

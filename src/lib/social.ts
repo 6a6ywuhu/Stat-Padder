@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { scorePlayerUncached } from "./group-scores";
 import { countRatingsForPlayer } from "./votes";
 import { formatRating } from "./scoring";
-import { Position, SKATER_POSITIONS, SkaterPosition } from "./attributes";
+import { ATTRIBUTE_LABELS, GOALIE_ATTRIBUTES, Position, SKATER_POSITIONS, SkaterPosition } from "./attributes";
 
 export const SOCIAL_TZ = "America/Vancouver";
 
@@ -11,6 +11,13 @@ const MIN_RATINGS_TO_QUOTE = 5;
 
 export type PlayerSnapshot = {
   id: string;
+  nhlId: number;
+  teamFullName: string | null;
+  teamColors: { primary: string; secondary: string } | null;
+  /** Skaters: General / Offense / Defense scores; null until someone rates them. */
+  categories: { general: number | null; offense: number | null; defense: number | null } | null;
+  /** Goalies: the six goalie attributes; null until someone rates them. */
+  goalieAttributes: { label: string; value: number | null }[] | null;
   firstName: string;
   lastName: string;
   position: string;
@@ -38,8 +45,18 @@ export async function getPlayerSnapshot(playerId: string): Promise<PlayerSnapsho
     countRatingsForPlayer(player.id),
   ]);
 
+  const rated = ratings > 0 && !!scored;
+  const cat = (k: "general" | "offense" | "defense") => (rated ? scored!.categoryBars[k]?.value ?? null : null);
+
   return {
     id: player.id,
+    nhlId: player.nhlId,
+    teamFullName: player.team ? `${player.team.city} ${player.team.name}` : null,
+    teamColors: player.team ? { primary: player.team.primaryColor, secondary: player.team.secondaryColor } : null,
+    categories: isGoalie ? null : { general: cat("general"), offense: cat("offense"), defense: cat("defense") },
+    goalieAttributes: isGoalie
+      ? GOALIE_ATTRIBUTES.map((a) => ({ label: ATTRIBUTE_LABELS[a], value: rated ? scored!.attributeBars[a]?.net ?? null : null }))
+      : null,
     firstName: player.firstName,
     lastName: player.lastName,
     position: player.position as Position,
@@ -71,6 +88,7 @@ export function buildCaption(s: PlayerSnapshot): string {
   return [
     hook,
     "",
+    `Swipe for ${s.lastName}'s stats →`,
     "Rate every skill from −100 to +100. No signup needed to start. statpadder.ca (link in bio)",
     "",
     tags,

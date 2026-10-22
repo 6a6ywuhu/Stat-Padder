@@ -38,22 +38,13 @@ export async function GET(req: Request) {
 
   const image = new ImageResponse(
     (
-      <div
-        style={{
-          width: W,
-          height: H,
-          display: "flex",
-          flexDirection: "column",
-          background: CARD_COLORS.bg,
-          color: INK,
-          fontFamily: "Jersey 10",
-          padding: "56px 60px 52px",
-        }}
-      >
+      <div style={{ width: W, height: H, display: "flex", background: RED, padding: 34, fontFamily: "Jersey 10", color: INK }}>
+       <div style={{ display: "flex", flex: 1, background: "#f4eedd", border: `6px solid ${INK}`, padding: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, border: `3px solid ${RED}`, padding: "22px 22px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 34, letterSpacing: 12, color: MUTED }}>LAST WEEK&apos;S</div>
-            <div style={{ display: "flex", fontSize: 92, lineHeight: 1 }}>TOP 5 SCORERS</div>
+            <div style={{ display: "flex", fontSize: 86, lineHeight: 1 }}>TOP 5 SCORERS</div>
           </div>
           <div style={{ display: "flex", fontSize: 50, color: RED, paddingBottom: 6 }}>{weekly.label}</div>
         </div>
@@ -78,8 +69,8 @@ export async function GET(req: Request) {
                 <div
                   style={{
                     display: "flex",
-                    width: 128,
-                    height: 128,
+                    width: 120,
+                    height: 120,
                     marginLeft: 16,
                     border: `3px solid ${LINE}`,
                     borderRadius: 6,
@@ -89,27 +80,34 @@ export async function GET(req: Request) {
                 >
                   {portraits[i] && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={portraits[i]!} width={122} height={122} style={{ width: 122, height: 122, objectFit: "cover", imageRendering: "pixelated" }} alt="" />
+                    <img src={portraits[i]!} width={114} height={114} style={{ width: 114, height: 114, objectFit: "cover", imageRendering: "pixelated" }} alt="" />
                   )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 20, overflow: "hidden" }}>
-                  <div style={{ display: "flex", fontSize: Math.min(40, Math.floor(640 / name.length)), lineHeight: 1.05, whiteSpace: "nowrap" }}>
+                  <div style={{ display: "flex", fontSize: Math.min(38, Math.floor(520 / name.length)), lineHeight: 1.05, whiteSpace: "nowrap" }}>
                     {name}
                   </div>
                   <div style={{ display: "flex", fontSize: 26, letterSpacing: 6, color: MUTED, marginTop: 4 }}>
                     {r.position} · {r.team}
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 116 }}>
-                  <div style={{ display: "flex", fontSize: 64, lineHeight: 1 }}>{r.points}</div>
-                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 5, color: MUTED }}>PTS</div>
-                  <div style={{ display: "flex", fontSize: 22, color: MUTED }}>{`${r.goals}G ${r.assists}A`}</div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 66 }}>
+                  <div style={{ display: "flex", fontSize: 50, lineHeight: 1 }}>{r.goals}</div>
+                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, color: MUTED }}>G</div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 84 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 66 }}>
+                  <div style={{ display: "flex", fontSize: 50, lineHeight: 1 }}>{r.assists}</div>
+                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, color: MUTED }}>A</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 100, background: INK, color: "#f4eedd", padding: "6px 0 4px" }}>
+                  <div style={{ display: "flex", fontSize: 62, lineHeight: 1 }}>{r.points}</div>
+                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, opacity: 0.8 }}>PTS</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 70 }}>
                   <div style={{ display: "flex", fontSize: 50, lineHeight: 1 }}>{r.gamesPlayed}</div>
-                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 5, color: MUTED }}>GP</div>
+                  <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, color: MUTED }}>GP</div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 132 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 118 }}>
                   <div style={{ display: "flex", fontSize: 58, lineHeight: 1, color: r.overall === null ? LINE : GREEN }}>
                     {r.overall === null ? "—" : formatRating(r.overall)}
                   </div>
@@ -137,6 +135,8 @@ export async function GET(req: Request) {
         >
           RATE THEM ALL — STATPADDER.CA
         </div>
+        </div>
+       </div>
       </div>
     ),
     { width: W, height: H, fonts: [{ name: "Jersey 10", data: font, style: "normal", weight: 400 }] }
