@@ -132,6 +132,23 @@ export async function publishMedia(opts: { imageUrls: string[]; caption: string 
   return published.id;
 }
 
+/** Publishes one 9:16 JPEG as an Instagram Story and returns its media id. (Stories take no caption.) */
+export async function publishStory(imageUrl: string): Promise<string> {
+  const token = await getAccessToken();
+  const user = igUserId();
+  const container = await graph<{ id: string }>("POST", `${user}/media`, {
+    image_url: imageUrl,
+    media_type: "STORIES",
+    access_token: token,
+  });
+  await waitUntilReady(container.id, token);
+  const published = await graph<{ id: string }>("POST", `${user}/media_publish`, {
+    creation_id: container.id,
+    access_token: token,
+  });
+  return published.id;
+}
+
 /**
  * Read-only: who the stored token belongs to, and whether it matches
  * INSTAGRAM_USER_ID. Meta hands out two different numbers per account (the

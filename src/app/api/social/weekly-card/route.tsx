@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatRating } from "@/lib/scoring";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
 import { getWeeklyLeaders, lastCompletedWeekStart } from "@/lib/social-weekly";
+import { STORY_H, storyFrame } from "@/lib/social-cards";
 import { CARD_COLORS, CARD_H as H, CARD_W as W, loadCardFont, portraitDataUri, respondWithCard } from "@/lib/social-image";
 
 export const runtime = "nodejs";
@@ -36,8 +37,8 @@ export async function GET(req: Request) {
     )
   );
 
-  const image = new ImageResponse(
-    (
+  const story = url.searchParams.get("story") === "1";
+  const card = (
       <div style={{ width: W, height: H, display: "flex", background: RED, padding: 34, fontFamily: "Jersey 10", color: INK }}>
        <div style={{ display: "flex", flex: 1, background: "#f4eedd", border: `6px solid ${INK}`, padding: 14 }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, border: `3px solid ${RED}`, padding: "22px 22px 20px" }}>
@@ -138,9 +139,12 @@ export async function GET(req: Request) {
         </div>
        </div>
       </div>
-    ),
-    { width: W, height: H, fonts: [{ name: "Jersey 10", data: font, style: "normal", weight: 400 }] }
   );
+  const image = new ImageResponse(story ? storyFrame(card) : card, {
+    width: W,
+    height: story ? STORY_H : H,
+    fonts: [{ name: "Jersey 10", data: font, style: "normal", weight: 400 }],
+  });
 
   return respondWithCard(image, url.searchParams.get("format") === "jpg");
 }

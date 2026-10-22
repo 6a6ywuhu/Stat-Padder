@@ -116,6 +116,8 @@ model SocialPost {
   status          String    @default("DRAFT")
   captionOverride String?
   externalId      String?   // the platform's media id once posted
+  storyIds        String?   // comma-separated Instagram Story ids posted alongside it
+  storyError      String?   // why the Stories (not the feed post) failed, if they did
   postedAt        DateTime?
   error           String?
   createdAt       DateTime  @default(now())

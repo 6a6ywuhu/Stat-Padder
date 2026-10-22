@@ -3,7 +3,7 @@ import { buildCaption, getPlayerSnapshot } from "./social";
 import { addDays, buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "./social-weekly";
 import { dailyAutoEnabled, rankedCandidates } from "./social-planner";
 import { zonedToUtc } from "./social";
-import { publishMedia, refreshTokenIfDue } from "./instagram";
+import { publishMedia, publishStory, refreshTokenIfDue } from "./instagram";
 
 /** Posts per run — a catch-up after a missed day shouldn't flood the feed. */
 const MAX_PER_RUN = 3;
@@ -22,6 +22,41 @@ export function publishingEnabled(): boolean {
 function siteUrl(): string {
   // statpadder.ca redirects to www; Meta needs a direct, public URL.
   return (process.env.SOCIAL_SITE_URL ?? "https://www.statpadder.ca").replace(/\/$/, "");
+}
+
+/** The same slides, on a 9:16 canvas, as Instagram Stories. */
+export function storyUrls(imageUrls: string[]): string[] {
+  return imageUrls.map((u) => `${u}${u.includes("?") ? "&" : "?"}story=1`);
+}
+
+/**
+ * Posts each slide as a Story. Stories are a bonus to the feed post, so a
+ * failure here is recorded on the row and never turns a posted feed post into
+ * a failed one (or causes it to be re-sent).
+ */
+export async function postStories(postId: string, imageUrls: string[]): Promise<{ ids: string[]; error?: string }> {
+  const ids: string[] = [];
+  let error: string | undefined;
+  for (const url of storyUrls(imageUrls)) {
+    try {
+      ids.push(await publishStory(url));
+    } catch (e) {
+      error = ((e as Error).message ?? "unknown error").slice(0, 300);
+      break;
+    }
+  }
+  await prisma.socialPost.update({
+    where: { id: postId },
+    data: { storyIds: ids.length ? ids.join(",") : null, storyError: error ?? null },
+  });
+  return { ids, error };
+}
+
+/** The feed image URL(s) for a post, rebuilt from its row. */
+export function imageUrlsFor(post: { kind: string; playerId: string | null; weekStart: string | null }, stamp: number): string[] {
+  const site = siteUrl();
+  if (post.kind === "WEEKLY") return [`${site}/api/social/weekly-card?week=${post.weekStart}&format=jpg&t=${stamp}`];
+  return [1, 2].map((n) => `${site}/api/social/card/${post.playerId}?format=jpg&slide=${n}&t=${stamp}`);
 }
 
 export type RunResult = {
@@ -162,7 +197,13 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
         where: { id: post.id },
         data: { status: "POSTED", externalId: mediaId, postedAt: new Date(), error: null },
       });
-      results.push({ id: post.id, player: label, action: "posted", detail: mediaId });
+      const stories = await postStories(post.id, imageUrls);
+      results.push({
+        id: post.id,
+        player: label,
+        action: "posted",
+        detail: `${mediaId} · ${stories.ids.length} ${stories.ids.length === 1 ? "story" : "stories"}${stories.error ? ` (stories stopped: ${stories.error})` : ""}`,
+      });
     } catch (e) {
       const message = ((e as Error).message ?? "unknown error").slice(0, 500);
       await prisma.socialPost.update({ where: { id: post.id }, data: { status: "FAILED", error: message } });

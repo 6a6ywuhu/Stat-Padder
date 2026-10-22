@@ -12,6 +12,7 @@
  *   npm run social -- weekly [YYYY-MM-DD]  preview a week's top-5 scorers post (default: the last completed week)
  *   npm run social -- publish          show what is due right now (posts nothing)
  *   npm run social -- publish --live   actually post what is due (needs SOCIAL_PUBLISH_ENABLED=true)
+ *   npm run social -- stories <id>     (re)post a POSTED post's slides as Stories (needs SOCIAL_PUBLISH_ENABLED=true)
  *   npm run social -- retry <id>       re-queue a FAILED post (check Instagram first that it didn't go out)
  *
  * Schedule file (default social/schedule.txt), one post per line, times in Vancouver:
@@ -28,7 +29,7 @@ import { writeFileSync } from "node:fs";
 import { prisma } from "../src/lib/prisma";
 import { rankedCandidates } from "../src/lib/social-planner";
 import { buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "../src/lib/social-weekly";
-import { publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
+import { imageUrlsFor, postStories, publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
 import {
   SOCIAL_TZ,
   buildCaption,
@@ -203,7 +204,8 @@ async function list() {
   });
   if (!posts.length) return console.log("No posts scheduled.");
   for (const p of posts) {
-    const extra = p.error ? `  error: ${p.error}` : p.externalId ? `  id: ${p.externalId}` : "";
+    const stories = p.storyError ? `  stories failed: ${p.storyError}` : p.storyIds ? `  +${p.storyIds.split(",").length} stories` : "";
+    const extra = p.error ? `  error: ${p.error}` : p.externalId ? `  id: ${p.externalId}${stories}` : "";
     console.log(
       `${p.status.padEnd(8)} ${formatWhen(p.scheduledFor).padEnd(26)} ${(p.kind === "WEEKLY" ? `Weekly top 5 (${p.weekStart})` : `${p.player?.firstName} ${p.player?.lastName}`).padEnd(24)} ${p.id}${extra}`
     );
@@ -239,6 +241,15 @@ async function main() {
       if (!arg) throw new Error("unapprove needs a post id");
       await setStatus(arg, ["APPROVED"], "DRAFT");
       break;
+    case "stories": {
+      if (!arg) throw new Error("stories needs a post id");
+      if (!publishingEnabled()) throw new Error("Refusing to post: set SOCIAL_PUBLISH_ENABLED=true first.");
+      const post = await prisma.socialPost.findFirst({ where: { id: arg, status: "POSTED" } });
+      if (!post) throw new Error(`No POSTED post with id ${arg}`);
+      const r = await postStories(post.id, imageUrlsFor(post, Date.now()));
+      console.log(r.error ? `Posted ${r.ids.length} stories, then stopped: ${r.error}` : `Posted ${r.ids.length} stories.`);
+      break;
+    }
     case "plan":
       await plan();
       break;
@@ -270,7 +281,7 @@ async function main() {
       break;
     }
     default:
-      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | plan | weekly [date] | publish [--live]");
+      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | stories <id> | plan | weekly [date] | publish [--live]");
   }
 }
 

@@ -31,6 +31,16 @@ function teamColors(d: CardData) {
   return { primary, fg: readableTextColor(primary) };
 }
 
+/** Instagram Stories are 9:16. The card sits centred on a dark ground, clear of the app's top and bottom bars. */
+export const STORY_H = 1920;
+export function storyFrame(card: ReactNode, ground: string = INK) {
+  return (
+    <div style={{ width: W, height: STORY_H, display: "flex", alignItems: "center", justifyContent: "center", background: ground }}>
+      {card}
+    </div>
+  );
+}
+
 /** The card itself: team-colour edge, ink keyline, stock face, thin inner rule. */
 function frame(primary: string, children: ReactNode) {
   return (
@@ -106,7 +116,7 @@ function ratingRow(label: string, value: number | null, colors: [string, string]
   );
 }
 
-export function frontCard(d: CardData, portrait: string | null) {
+export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE" | "TAP" = "SWIPE") {
   const { primary, fg } = teamColors(d);
   const s = d.snap;
   const photo = d.isGoalie ? 380 : 490;
@@ -163,7 +173,7 @@ export function frontCard(d: CardData, portrait: string | null) {
         >
           {cta}
         </div>
-        <div style={{ display: "flex", fontSize: 28, letterSpacing: 7, color: MUTED }}>SWIPE FOR THE STATS  →</div>
+        <div style={{ display: "flex", fontSize: 28, letterSpacing: 7, color: MUTED }}>{nextHint} FOR THE STATS  →</div>
       </div>
     </div>
   );
