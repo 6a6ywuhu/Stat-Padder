@@ -105,3 +105,22 @@ export async function publishPhoto(opts: { imageUrl: string; caption: string }):
   });
   return published.id;
 }
+
+/**
+ * Read-only: who the stored token belongs to, and whether it matches
+ * INSTAGRAM_USER_ID. Meta hands out two different numbers per account (the
+ * app-scoped `id` and the publishing `user_id`); posting needs `user_id`.
+ */
+export async function verifyAccount(): Promise<{ username?: string; userId?: string; idMatchesEnv: boolean; error?: string }> {
+  try {
+    const token = await getAccessToken();
+    const me = await graph<{ id?: string; user_id?: string; username?: string }>("GET", "me", {
+      fields: "user_id,username",
+      access_token: token,
+    });
+    const configured = process.env.INSTAGRAM_USER_ID?.trim();
+    return { username: me.username, userId: me.user_id, idMatchesEnv: !!configured && configured === String(me.user_id ?? me.id) };
+  } catch (e) {
+    return { idMatchesEnv: false, error: (e as Error).message };
+  }
+}

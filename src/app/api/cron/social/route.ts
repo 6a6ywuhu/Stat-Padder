@@ -1,4 +1,5 @@
 import { publishingEnabled, runDuePosts } from "@/lib/social-publisher";
+import { verifyAccount } from "@/lib/instagram";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,5 +18,7 @@ export async function GET(req: Request) {
   }
   const dryRun = !publishingEnabled();
   const out = await runDuePosts({ dryRun });
-  return Response.json({ dryRun, ...out });
+  // On a dry run, also prove the Instagram connection works without posting.
+  const account = dryRun ? await verifyAccount() : undefined;
+  return Response.json({ dryRun, ...(account ? { account } : {}), ...out });
 }
