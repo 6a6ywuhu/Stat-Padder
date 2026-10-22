@@ -109,11 +109,11 @@ export async function GET(req: Request) {
                   <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, color: MUTED }}>GP</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 118 }}>
-                  <div style={{ display: "flex", fontSize: 58, lineHeight: 1, color: r.overall === null ? LINE : GREEN }}>
+                  <div style={{ display: "flex", fontSize: 58, lineHeight: 1, color: r.overall === null ? LINE : r.baselineOnly ? "#6f9c80" : GREEN }}>
                     {r.overall === null ? "—" : formatRating(r.overall)}
                   </div>
                   <div style={{ display: "flex", fontSize: 22, letterSpacing: 4, color: MUTED }}>
-                    {r.overall === null ? "UNRATED" : "OVERALL"}
+                    {r.overall === null ? "UNRATED" : r.baselineOnly ? "EST." : "OVERALL"}
                   </div>
                 </div>
               </div>
@@ -121,6 +121,11 @@ export async function GET(req: Request) {
           })}
         </div>
 
+        {weekly.rows.some((r) => r.baselineOnly) && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10, fontSize: 24, letterSpacing: 3, color: MUTED }}>
+            EST. = STATS-BASED ESTIMATE UNTIL THE COMMUNITY RATES
+          </div>
+        )}
         <div
           style={{
             display: "flex",

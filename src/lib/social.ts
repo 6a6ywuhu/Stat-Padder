@@ -24,10 +24,12 @@ export type PlayerSnapshot = {
   teamId: string | null;
   teamName: string | null;
   headshotUrl: string | null;
-  /** Distinct Submit actions on this player — the "N ratings" the site shows. */
+  /** Real community ratings (distinct Submit actions) — the "N ratings" the site shows. */
   ratings: number;
-  /** Null when nobody has rated them yet. */
+  /** Null when there is nothing at all to show. */
   overall: number | null;
+  /** True when the numbers come only from a stats-based starting rating, with no community rating yet. */
+  baselineOnly: boolean;
 };
 
 /** Live numbers for one player — the single source for both the card image and the caption. */
@@ -45,7 +47,8 @@ export async function getPlayerSnapshot(playerId: string): Promise<PlayerSnapsho
     countRatingsForPlayer(player.id),
   ]);
 
-  const rated = ratings > 0 && !!scored;
+  // Real ratings, or a stats-based starting rating standing in for them.
+  const rated = !!scored && scored.totalVotes > 0;
   const cat = (k: "general" | "offense" | "defense") => (rated ? scored!.categoryBars[k]?.value ?? null : null);
 
   return {
@@ -64,7 +67,8 @@ export async function getPlayerSnapshot(playerId: string): Promise<PlayerSnapsho
     teamName: player.team?.name ?? null,
     headshotUrl: player.headshotUrl,
     ratings,
-    overall: ratings > 0 && scored ? scored.overallValue : null,
+    overall: rated ? scored!.overallValue : null,
+    baselineOnly: rated && ratings === 0,
   };
 }
 
@@ -74,10 +78,12 @@ export function buildCaption(s: PlayerSnapshot): string {
   const n = s.ratings;
 
   let hook: string;
-  if (n === 0 || s.overall === null) {
+  if (s.overall === null) {
     hook = `Nobody on Stat Padder has rated ${s.lastName} yet. Be the first.`;
+  } else if (s.baselineOnly) {
+    hook = `${full}'s stats-based starting rating is ${formatRating(s.overall)} Overall, and nobody in the community has rated him yet. Think it's right? Be the first to rate.`;
   } else if (n < MIN_RATINGS_TO_QUOTE) {
-    hook = `Only ${n} ${n === 1 ? "rating" : "ratings"} on ${full} so far, so your vote would move the number a lot.`;
+    hook = `Only ${n} community ${n === 1 ? "rating" : "ratings"} on ${full} so far, so your vote would move the number a lot.`;
   } else {
     hook = `The community has ${full} at ${formatRating(s.overall)} Overall across ${n} ratings. Right or wrong?`;
   }

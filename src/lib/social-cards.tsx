@@ -121,7 +121,7 @@ export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE
   const s = d.snap;
   const photo = d.isGoalie ? 380 : 490;
   const rated = s.overall !== null;
-  const cta = rated ? `YOUR VOTE MOVES THIS — RATE ${s.firstName.toUpperCase()}` : `BE THE FIRST TO RATE ${s.firstName.toUpperCase()}`;
+  const cta = s.ratings > 0 ? `YOUR VOTE MOVES THIS — RATE ${s.firstName.toUpperCase()}` : `BE THE FIRST TO RATE ${s.firstName.toUpperCase()}`;
 
   const rows = d.isGoalie
     ? (s.goalieAttributes ?? []).map((a) => ratingRow(a.label.toUpperCase(), a.value, BAR_COLORS.green, true))
@@ -147,7 +147,7 @@ export function frontCard(d: CardData, portrait: string | null, nextHint: "SWIPE
 
       <div style={{ display: "flex", flexDirection: "column", marginTop: 22, padding: "14px 22px 16px", background: PAPER, border: `3px solid ${INK}`, gap: d.isGoalie ? 8 : 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", fontSize: 28, letterSpacing: 6, color: MUTED }}>COMMUNITY RATINGS</div>
+          <div style={{ display: "flex", fontSize: 28, letterSpacing: 6, color: MUTED }}>{s.baselineOnly ? "STATS-BASED RATINGS" : "COMMUNITY RATINGS"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ display: "flex", fontSize: 28, letterSpacing: 5, color: MUTED }}>OVERALL</div>
             <div style={{ display: "flex", fontSize: 64, lineHeight: 1, color: rated ? GREEN : "#b9b5a3" }}>{rated ? formatRating(s.overall!) : "—"}</div>
@@ -271,9 +271,9 @@ export function backCard(d: CardData, portrait: string | null) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", padding: "14px 22px 10px", background: PAPER, border: `3px solid ${INK}` }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 26, letterSpacing: 6, color: MUTED }}>COMMUNITY OVERALL</div>
+          <div style={{ display: "flex", fontSize: 26, letterSpacing: s.baselineOnly ? 3 : 6, color: MUTED }}>{s.baselineOnly ? "STATS-BASED OVERALL" : "COMMUNITY OVERALL"}</div>
           <div style={{ display: "flex", fontSize: 24, letterSpacing: 3, color: MUTED }}>
-            {s.ratings === 0 ? "NO RATINGS YET" : `${s.ratings} ${s.ratings === 1 ? "RATING" : "RATINGS"}`}
+            {s.ratings === 0 ? "NO COMMUNITY RATINGS YET" : `${s.ratings} ${s.ratings === 1 ? "RATING" : "RATINGS"}`}
           </div>
         </div>
         <div style={{ display: "flex", fontSize: 76, lineHeight: 1, color: s.overall === null ? "#b9b5a3" : GREEN }}>

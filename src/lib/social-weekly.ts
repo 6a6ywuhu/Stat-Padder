@@ -16,8 +16,10 @@ export type WeeklyRow = {
   goals: number;
   assists: number;
   gamesPlayed: number;
-  /** Community Overall, or null when nobody has rated them yet. */
+  /** Overall, or null when there is nothing to show. */
   overall: number | null;
+  /** True when that Overall is only a stats-based starting rating (no community rating yet). */
+  baselineOnly: boolean;
   /** Stat Padder player id when we know them (used for the portrait). */
   playerId: string | null;
 };
@@ -94,6 +96,17 @@ export async function getWeeklyLeaders(weekStart: string): Promise<WeeklyLeaders
   const pool = await scoreGroupUncached({ kind: "skater", positions: SKATER_POSITIONS });
   const overallById = new Map(pool.map((s) => [s.player.id, s.totalVotes > 0 ? s.overallValue : null]));
 
+  // Real (non-seeded) ratings per player, to tell a community Overall from a stats-based baseline.
+  const realRatings = new Map<string, Set<string>>();
+  const submissions = await prisma.attributeVote.groupBy({
+    by: ["playerId", "submissionId"],
+    where: { playerId: { in: dbPlayers.map((p) => p.id) }, NOT: { voterKey: { startsWith: "seed:" } } },
+  });
+  for (const g of submissions) {
+    if (!realRatings.has(g.playerId)) realRatings.set(g.playerId, new Set());
+    realRatings.get(g.playerId)!.add(g.submissionId);
+  }
+
   const rows: WeeklyRow[] = data.map((r, i) => {
     const db = byNhl.get(r.playerId);
     const [first, ...rest] = r.skaterFullName.split(" ");
@@ -108,6 +121,7 @@ export async function getWeeklyLeaders(weekStart: string): Promise<WeeklyLeaders
       assists: r.assists,
       gamesPlayed: r.gamesPlayed,
       overall: db ? overallById.get(db.id) ?? null : null,
+      baselineOnly: !!db && overallById.get(db.id) != null && !(realRatings.get(db.id)?.size),
       playerId: db?.id ?? null,
     };
   });
@@ -117,7 +131,8 @@ export async function getWeeklyLeaders(weekStart: string): Promise<WeeklyLeaders
 
 export function buildWeeklyCaption(w: WeeklyLeaders): string {
   const lines = w.rows.map((r) => {
-    const overall = r.overall === null ? "not rated yet" : `community Overall ${formatRating(r.overall)}`;
+    const overall =
+      r.overall === null ? "not rated yet" : r.baselineOnly ? `stats-based est. ${formatRating(r.overall)}` : `community Overall ${formatRating(r.overall)}`;
     return `${r.rank}. ${r.firstName} ${r.lastName} — ${r.points} PTS (${r.goals}G ${r.assists}A) in ${r.gamesPlayed} GP — ${overall}`;
   });
   return [

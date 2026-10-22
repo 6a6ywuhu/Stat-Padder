@@ -24,13 +24,13 @@ function siteUrl(): string {
   return (process.env.SOCIAL_SITE_URL ?? "https://www.statpadder.ca").replace(/\/$/, "");
 }
 
-/** The same slides, on a 9:16 canvas, as Instagram Stories. */
+/** The post's first slide, on a 9:16 canvas, as an Instagram Story. */
 export function storyUrls(imageUrls: string[]): string[] {
-  return imageUrls.map((u) => `${u}${u.includes("?") ? "&" : "?"}story=1`);
+  return imageUrls.slice(0, 1).map((u) => `${u}${u.includes("?") ? "&" : "?"}story=1`);
 }
 
 /**
- * Posts each slide as a Story. Stories are a bonus to the feed post, so a
+ * Posts the first slide as a Story. Stories are a bonus to the feed post, so a
  * failure here is recorded on the row and never turns a posted feed post into
  * a failed one (or causes it to be re-sent).
  */

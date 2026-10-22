@@ -71,12 +71,13 @@ export async function getVoteMapForPlayer(playerId: string): Promise<PlayerVoteM
 /**
  * How many distinct ratings this player has — one per submission, so a
  * voter who has re-rated over several days counts once per submission
- * that's still on file.
+ * that's still on file. Seeded starting ratings are not counted.
  */
 export async function countRatingsForPlayer(playerId: string): Promise<number> {
   const groups = await prisma.attributeVote.groupBy({
     by: ["submissionId"],
-    where: { playerId },
+    // Stats-based starting ratings (see seed-ratings.ts) are a baseline, not a person's rating.
+    where: { playerId, NOT: { voterKey: { startsWith: "seed:" } } },
   });
   return groups.length;
 }

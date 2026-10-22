@@ -12,7 +12,9 @@
  *   npm run social -- weekly [YYYY-MM-DD]  preview a week's top-5 scorers post (default: the last completed week)
  *   npm run social -- publish          show what is due right now (posts nothing)
  *   npm run social -- publish --live   actually post what is due (needs SOCIAL_PUBLISH_ENABLED=true)
- *   npm run social -- stories <id>     (re)post a POSTED post's slides as Stories (needs SOCIAL_PUBLISH_ENABLED=true)
+ *   npm run social -- seed [--count 15] [--write]   propose (or with --write, save) stats-based STARTING ratings for unrated players
+ *   npm run social -- seed --remove                   delete every stats-based starting rating
+ *   npm run social -- stories <id>     (re)post a POSTED post's first slide as a Story (needs SOCIAL_PUBLISH_ENABLED=true)
  *   npm run social -- retry <id>       re-queue a FAILED post (check Instagram first that it didn't go out)
  *
  * Schedule file (default social/schedule.txt), one post per line, times in Vancouver:
@@ -28,6 +30,7 @@ import { readFileSync } from "node:fs";
 import { writeFileSync } from "node:fs";
 import { prisma } from "../src/lib/prisma";
 import { rankedCandidates } from "../src/lib/social-planner";
+import { describeSeed, removeAllSeeds, seedValuesFor, writeSeed } from "../src/lib/seed-ratings";
 import { buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "../src/lib/social-weekly";
 import { imageUrlsFor, postStories, publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
 import {
@@ -196,6 +199,43 @@ async function weekly(arg?: string) {
   console.log(`\nCard: /api/social/weekly-card?week=${w.weekStart}   (add &format=jpg for the Instagram version)`);
 }
 
+/**
+ * Stats-based starting ratings for players nobody has rated yet. They're
+ * tagged (voterKey "seed:…"), excluded from every "N ratings" count, and
+ * diluted by each real vote. Dry run unless --write.
+ */
+async function seed() {
+  if (process.argv.includes("--remove")) {
+    const n = await removeAllSeeds();
+    return console.log(`Removed ${n} seeded rating rows.`);
+  }
+  const count = Number(flag("count") ?? 15);
+  const write = process.argv.includes("--write");
+  const pool = (await rankedCandidates("fewest", { includeUnrated: true })).filter((c) => c.votes === 0);
+  const players = await prisma.player.findMany({
+    where: { id: { in: pool.map((c) => c.id) } },
+    select: { id: true, nhlId: true, firstName: true, lastName: true, position: true },
+  });
+  const byId = new Map(players.map((p) => [p.id, p]));
+
+  let done = 0;
+  for (const c of pool) {
+    if (done >= count) break;
+    const p = byId.get(c.id);
+    if (!p) continue;
+    const values = await seedValuesFor(p);
+    if (!values) {
+      console.log(`skip  ${p.firstName} ${p.lastName} — fewer than 10 NHL games on record`);
+      continue;
+    }
+    const avg = Math.round(Object.values(values).reduce((a, b) => a + b, 0) / Object.values(values).length);
+    console.log(`${write ? "seed " : "would"} ${`${p.firstName} ${p.lastName}`.padEnd(24)} ${p.position.padEnd(3)} overall≈${String(avg).padStart(3)}   ${describeSeed(values)}`);
+    if (write) await writeSeed(p.id, values);
+    done++;
+  }
+  console.log(write ? `\nSaved starting ratings for ${done} players.` : `\nDry run: ${done} players. Add --write to save. Undo anytime with: npm run social -- seed --remove`);
+}
+
 async function list() {
   const posts = await prisma.socialPost.findMany({
     include: { player: { select: { firstName: true, lastName: true } } },
@@ -241,6 +281,9 @@ async function main() {
       if (!arg) throw new Error("unapprove needs a post id");
       await setStatus(arg, ["APPROVED"], "DRAFT");
       break;
+    case "seed":
+      await seed();
+      break;
     case "stories": {
       if (!arg) throw new Error("stories needs a post id");
       if (!publishingEnabled()) throw new Error("Refusing to post: set SOCIAL_PUBLISH_ENABLED=true first.");
@@ -281,7 +324,7 @@ async function main() {
       break;
     }
     default:
-      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | stories <id> | plan | weekly [date] | publish [--live]");
+      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | stories <id> | seed | plan | weekly [date] | publish [--live]");
   }
 }
 
