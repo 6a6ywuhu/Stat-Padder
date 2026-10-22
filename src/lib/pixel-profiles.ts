@@ -27,6 +27,7 @@ const PIXEL_PROFILE_SLUGS = new Set([
   "alex-debrincat",
   "alex-ovechkin",
   "alexis-lafreniere",
+  "andrei-svechnikov",
   "andrei-vasilevskiy",
   "artemi-panarin",
   "auston-matthews",
