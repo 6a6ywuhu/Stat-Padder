@@ -7,6 +7,9 @@
  *   npm run social -- approve <id|all> let a DRAFT go out when it is due
  *   npm run social -- unapprove <id>   put an APPROVED post back to DRAFT
  *   npm run social -- cancel <id>      delete a post that hasn't gone out
+ *   npm run social -- plan [--days 14] [--start YYYY-MM-DD] [--time 08:00] [--order fewest|top] [--include-mondays]
+ *                                      propose one player per day into social/plan.txt for you to review, then `add` it
+ *   npm run social -- weekly [YYYY-MM-DD]  preview a week's top-5 scorers post (default: the last completed week)
  *   npm run social -- publish          show what is due right now (posts nothing)
  *   npm run social -- publish --live   actually post what is due (needs SOCIAL_PUBLISH_ENABLED=true)
  *   npm run social -- retry <id>       re-queue a FAILED post (check Instagram first that it didn't go out)
@@ -21,7 +24,10 @@
  */
 import "dotenv/config";
 import { readFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { prisma } from "../src/lib/prisma";
+import { pixelProfileFor } from "../src/lib/pixel-profiles";
+import { buildWeeklyCaption, getWeeklyLeaders, lastCompletedWeekStart, todayInSocialTz, weekdayOf } from "../src/lib/social-weekly";
 import { publishingEnabled, runDuePosts } from "../src/lib/social-publisher";
 import {
   SOCIAL_TZ,
@@ -124,6 +130,82 @@ async function add(path: string) {
   console.log('Nothing posts until you approve: npm run social -- approve all');
 }
 
+
+function flag(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+
+function addDaysYmd(ymd: string, n: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + n * 86400000).toISOString().slice(0, 10);
+}
+
+/**
+ * One player per day. Candidates are players with a hand-drawn pixel portrait
+ * who aren't already scheduled or posted. Default order is fewest ratings
+ * first (they need votes most); --order top starts from the best-rated.
+ * Mondays are skipped because that day carries the weekly top-5 post.
+ */
+async function plan() {
+  const days = Number(flag("days") ?? 14);
+  const time = flag("time") ?? "08:00";
+  const order = flag("order") ?? "fewest";
+  const includeMondays = process.argv.includes("--include-mondays");
+  let day = flag("start") ?? addDaysYmd(todayInSocialTz(), 1);
+
+  const used = new Set(
+    (await prisma.socialPost.findMany({ where: { kind: "PLAYER", playerId: { not: null } }, select: { playerId: true } })).map((p) => p.playerId!)
+  );
+  const players = await prisma.player.findMany({
+    where: { status: { in: ["ACTIVE", "INJURED"] } },
+    select: { id: true, firstName: true, lastName: true, position: true },
+  });
+  const votes = await prisma.attributeVote.groupBy({ by: ["playerId"], _count: { _all: true } });
+  const voteCount = new Map(votes.map((v) => [v.playerId, v._count._all]));
+
+  const candidates = players
+    .filter((p) => !used.has(p.id) && pixelProfileFor(p.firstName, p.lastName, p.position))
+    .map((p) => ({ ...p, n: voteCount.get(p.id) ?? 0 }));
+  // Ties (most players have the same rating count) are shuffled by a stable hash of
+  // the player id, so the feed mixes positions and teams instead of running A–Z.
+  const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  candidates.sort((a, b) => (order === "top" ? b.n - a.n : a.n - b.n) || hash(a.id) - hash(b.id));
+
+  const names = new Map<string, number>();
+  for (const p of players) names.set(`${p.firstName} ${p.lastName}`, (names.get(`${p.firstName} ${p.lastName}`) ?? 0) + 1);
+
+  const lines: string[] = [];
+  const shown: string[] = [];
+  for (const p of candidates) {
+    if (lines.length >= days) break;
+    while (!includeMondays && weekdayOf(day) === 1) day = addDaysYmd(day, 1);
+    const full = `${p.firstName} ${p.lastName}`;
+    const tag = (names.get(full) ?? 0) > 1 ? ` (${p.position})` : "";
+    lines.push(`${day} ${time} | ${full}${tag}`);
+    shown.push(`${day}  ${full.padEnd(24)} ${p.position}  ${p.n === 0 ? "no ratings" : `${Math.round(p.n / 9)} rating(s)`}`);
+    day = addDaysYmd(day, 1);
+  }
+  if (!lines.length) return console.log("No unscheduled players with pixel portraits left.");
+
+  writeFileSync(
+    "social/plan.txt",
+    `# Proposed daily posts (${order === "top" ? "best-rated first" : "fewest ratings first"}). Edit freely, then: npm run social -- add social/plan.txt\n${lines.join("\n")}\n`
+  );
+  console.log(shown.join("\n"));
+  console.log(`\nWrote ${lines.length} lines to social/plan.txt${includeMondays ? "" : " (Mondays skipped — the weekly top-5 post goes out then)"}.`);
+  console.log("Review/reorder it, then: npm run social -- add social/plan.txt   and   npm run social -- approve all");
+}
+
+async function weekly(arg?: string) {
+  const week = arg && /^\d{4}-\d{2}-\d{2}$/.test(arg) ? arg : lastCompletedWeekStart();
+  const w = await getWeeklyLeaders(week);
+  if (!w) return console.log(`Week of ${week}: fewer than five skaters played, so no post.`);
+  console.log(`Week of ${w.weekStart} → ${w.weekEnd}\n`);
+  console.log(buildWeeklyCaption(w));
+  console.log(`\nCard: /api/social/weekly-card?week=${w.weekStart}   (add &format=jpg for the Instagram version)`);
+}
+
 async function list() {
   const posts = await prisma.socialPost.findMany({
     include: { player: { select: { firstName: true, lastName: true } } },
@@ -134,7 +216,7 @@ async function list() {
   for (const p of posts) {
     const extra = p.error ? `  error: ${p.error}` : p.externalId ? `  id: ${p.externalId}` : "";
     console.log(
-      `${p.status.padEnd(8)} ${formatWhen(p.scheduledFor).padEnd(26)} ${`${p.player.firstName} ${p.player.lastName}`.padEnd(24)} ${p.id}${extra}`
+      `${p.status.padEnd(8)} ${formatWhen(p.scheduledFor).padEnd(26)} ${(p.kind === "WEEKLY" ? `Weekly top 5 (${p.weekStart})` : `${p.player?.firstName} ${p.player?.lastName}`).padEnd(24)} ${p.id}${extra}`
     );
   }
 }
@@ -168,6 +250,12 @@ async function main() {
       if (!arg) throw new Error("unapprove needs a post id");
       await setStatus(arg, ["APPROVED"], "DRAFT");
       break;
+    case "plan":
+      await plan();
+      break;
+    case "weekly":
+      await weekly(arg);
+      break;
     case "retry":
       if (!arg) throw new Error("retry needs a post id");
       await setStatus(arg, ["FAILED"], "APPROVED");
@@ -193,7 +281,7 @@ async function main() {
       break;
     }
     default:
-      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | publish [--live]");
+      console.log("Commands: preview [file] | add [file] | list | approve <id|all> | unapprove <id> | cancel <id> | retry <id> | plan | weekly [date] | publish [--live]");
   }
 }
 

@@ -106,8 +106,11 @@ model AttributeVote {
  */
 model SocialPost {
   id              String    @id @default(cuid())
-  playerId        String
-  player          Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  /** "PLAYER" (one player's rate-me card) or "WEEKLY" (last week's top 5 scorers). */
+  kind            String    @default("PLAYER")
+  playerId        String?   // set for PLAYER posts
+  player          Player?   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  weekStart       String?   // WEEKLY: the Monday ("YYYY-MM-DD") of the week being summarised
   channel         String    @default("instagram")
   scheduledFor    DateTime
   status          String    @default("DRAFT")

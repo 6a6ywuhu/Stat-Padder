@@ -1,44 +1,17 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import sharp from "sharp";
 import { getPlayerSnapshot } from "@/lib/social";
 import { formatRating } from "@/lib/scoring";
 import { pixelProfileFor } from "@/lib/pixel-profiles";
+import { CARD_COLORS, CARD_H as H, CARD_W as W, loadCardFont, portraitDataUri, respondWithCard } from "@/lib/social-image";
 
 export const runtime = "nodejs";
 
-const W = 1080;
-const H = 1350;
-
-const INK = "#10201d";
-const MUTED = "#4c625d";
-const LINE = "#bdd1ca";
-const RED = "#e11d16";
-const GREEN = "#157a3d";
-
-async function loadFont(): Promise<Buffer> {
-  return readFile(join(process.cwd(), "src", "assets", "Jersey10-Regular.ttf"));
-}
-
-async function portraitDataUri(src: string | null, origin: string): Promise<string | null> {
-  if (!src) return null;
-  try {
-    const url = src.startsWith("http") ? src : `${origin}${src}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") ?? "image/png";
-    const buf = Buffer.from(await res.arrayBuffer());
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
+const { ink: INK, muted: MUTED, line: LINE, red: RED, green: GREEN } = CARD_COLORS;
 
 /** 1080×1350 "rate this player" card for Instagram. Public data only. PNG by default, JPEG with ?format=jpg. */
 export async function GET(req: Request, { params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
-  const [snap, font] = await Promise.all([getPlayerSnapshot(playerId), loadFont()]);
+  const [snap, font] = await Promise.all([getPlayerSnapshot(playerId), loadCardFont()]);
   if (!snap) return new Response("Player not found", { status: 404 });
 
   const origin = new URL(req.url).origin;
@@ -133,13 +106,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ playerId
     { width: W, height: H, fonts: [{ name: "Jersey 10", data: font, style: "normal", weight: 400 }] }
   );
 
-  // Instagram's publishing API accepts JPEG only.
-  if (new URL(req.url).searchParams.get("format") === "jpg") {
-    const png = Buffer.from(await image.arrayBuffer());
-    const jpg = await sharp(png).flatten({ background: "#f1f6f4" }).jpeg({ quality: 92 }).toBuffer();
-    return new Response(new Uint8Array(jpg), {
-      headers: { "content-type": "image/jpeg", "cache-control": "no-store" },
-    });
-  }
-  return image;
+  return respondWithCard(image, new URL(req.url).searchParams.get("format") === "jpg");
 }

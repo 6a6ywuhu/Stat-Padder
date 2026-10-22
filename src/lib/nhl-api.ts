@@ -190,9 +190,11 @@ function encodeSort(sort: StatSortKey[]): string {
 // `since` ("YYYY-MM-DD") narrows the aggregate to games on or after that date —
 // the stats API honours `gameDate` inside the cayenne expression, so week/month
 // point totals come back in one query instead of per-player game logs.
-function regularSeasonExp(seasonId: number, since?: string): string {
-  const base = `seasonId=${seasonId} and gameTypeId=2`;
-  return encodeURIComponent(since ? `${base} and gameDate>="${since}"` : base);
+function regularSeasonExp(seasonId: number, since?: string, until?: string): string {
+  let exp = `seasonId=${seasonId} and gameTypeId=2`;
+  if (since) exp += ` and gameDate>="${since}"`;
+  if (until) exp += ` and gameDate<="${until}"`; // inclusive — closes a window like Mon–Sun
+  return encodeURIComponent(exp);
 }
 
 export async function getSkaterSummary(
@@ -201,10 +203,11 @@ export async function getSkaterSummary(
     limit = 100,
     start = 0,
     since,
+    until,
     sort = [{ property: "points", direction: "DESC" }, { property: "goals", direction: "DESC" }],
-  }: { limit?: number; start?: number; since?: string; sort?: StatSortKey[] } = {}
+  }: { limit?: number; start?: number; since?: string; until?: string; sort?: StatSortKey[] } = {}
 ) {
-  const url = `${STATS_API}/skater/summary?limit=${limit}&start=${start}&sort=${encodeSort(sort)}&cayenneExp=${regularSeasonExp(seasonId, since)}`;
+  const url = `${STATS_API}/skater/summary?limit=${limit}&start=${start}&sort=${encodeSort(sort)}&cayenneExp=${regularSeasonExp(seasonId, since, until)}`;
   const data = await getJson<{ data: NhlSkaterSummaryRow[]; total: number }>(url, 3600);
   return data;
 }
