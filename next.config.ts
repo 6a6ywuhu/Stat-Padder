@@ -21,6 +21,11 @@ const edgeCacheHeaders = [
 const IMMUTABLE_ASSET = "public, max-age=31536000, immutable";
 
 const nextConfig: NextConfig = {
+  // The Instagram card route reads its font from disk at request time, which
+  // Vercel's file tracing can't see on its own.
+  outputFileTracingIncludes: {
+    "/api/social/card/[playerId]": ["./src/assets/**"],
+  },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "assets.nhle.com" }],
   },
