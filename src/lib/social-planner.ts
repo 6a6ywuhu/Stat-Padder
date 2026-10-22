@@ -15,11 +15,16 @@ function hash(id: string): number {
 
 /**
  * Players eligible for a daily post, best pick first. Eligible = active, has a
- * hand-drawn pixel portrait, and has never had a post of their own (any status,
- * so a failed post is never silently re-picked). "fewest" puts the least-rated
- * first, since they need votes most; "top" starts from the most-voted.
+ * hand-drawn pixel portrait, has at least one rating (so the card has real
+ * numbers to show; `includeUnrated` lifts that), and has never had a post of
+ * their own (any status, so a failed post is never silently re-picked).
+ * "fewest" puts the least-rated first, since they need votes most; "top"
+ * starts from the most-voted.
  */
-export async function rankedCandidates(order: "fewest" | "top" = "fewest"): Promise<Candidate[]> {
+export async function rankedCandidates(
+  order: "fewest" | "top" = "fewest",
+  { includeUnrated = false }: { includeUnrated?: boolean } = {}
+): Promise<Candidate[]> {
   const used = new Set(
     (await prisma.socialPost.findMany({ where: { kind: "PLAYER", playerId: { not: null } }, select: { playerId: true } })).map((p) => p.playerId!)
   );
@@ -27,11 +32,14 @@ export async function rankedCandidates(order: "fewest" | "top" = "fewest"): Prom
     where: { status: { in: ["ACTIVE", "INJURED"] } },
     select: { id: true, firstName: true, lastName: true, position: true },
   });
-  const votes = await prisma.attributeVote.groupBy({ by: ["playerId"], _count: { _all: true } });
-  const voteCount = new Map(votes.map((v) => [v.playerId, v._count._all]));
+  // Ratings = distinct Submit actions (a goalie's has 6 attribute rows, a skater's 9+), like the site's "N ratings".
+  const counted = await prisma.$queryRaw<{ playerId: string; n: bigint | number }[]>`
+    SELECT playerId, COUNT(DISTINCT submissionId) AS n FROM AttributeVote GROUP BY playerId`;
+  const voteCount = new Map(counted.map((v) => [v.playerId, Number(v.n)]));
 
   return players
     .filter((p) => !used.has(p.id) && pixelProfileFor(p.firstName, p.lastName, p.position))
     .map((p) => ({ ...p, votes: voteCount.get(p.id) ?? 0 }))
+    .filter((p) => includeUnrated || p.votes > 0)
     .sort((a, b) => (order === "top" ? b.votes - a.votes : a.votes - b.votes) || hash(a.id) - hash(b.id));
 }

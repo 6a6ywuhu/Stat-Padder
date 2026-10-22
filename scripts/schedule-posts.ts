@@ -7,7 +7,7 @@
  *   npm run social -- approve <id|all> let a DRAFT go out when it is due
  *   npm run social -- unapprove <id>   put an APPROVED post back to DRAFT
  *   npm run social -- cancel <id>      delete a post that hasn't gone out
- *   npm run social -- plan [--days 14] [--start YYYY-MM-DD] [--time 08:00] [--order fewest|top] [--include-mondays]
+ *   npm run social -- plan [--days 14] [--start YYYY-MM-DD] [--time 08:00] [--order fewest|top] [--include-mondays] [--include-unrated]
  *                                      propose one player per day into social/plan.txt for you to review, then `add` it
  *   npm run social -- weekly [YYYY-MM-DD]  preview a week's top-5 scorers post (default: the last completed week)
  *   npm run social -- publish          show what is due right now (posts nothing)
@@ -158,7 +158,8 @@ async function plan() {
     where: { status: { in: ["ACTIVE", "INJURED"] } },
     select: { id: true, firstName: true, lastName: true, position: true },
   });
-  const candidates = (await rankedCandidates(order === "top" ? "top" : "fewest")).map((c) => ({ ...c, n: c.votes }));
+  const includeUnrated = process.argv.includes("--include-unrated");
+  const candidates = (await rankedCandidates(order === "top" ? "top" : "fewest", { includeUnrated })).map((c) => ({ ...c, n: c.votes }));
 
   const names = new Map<string, number>();
   for (const p of players) names.set(`${p.firstName} ${p.lastName}`, (names.get(`${p.firstName} ${p.lastName}`) ?? 0) + 1);
@@ -171,10 +172,10 @@ async function plan() {
     const full = `${p.firstName} ${p.lastName}`;
     const tag = (names.get(full) ?? 0) > 1 ? ` (${p.position})` : "";
     lines.push(`${day} ${time} | ${full}${tag}`);
-    shown.push(`${day}  ${full.padEnd(24)} ${p.position}  ${p.n === 0 ? "no ratings" : `${Math.round(p.n / 9)} rating(s)`}`);
+    shown.push(`${day}  ${full.padEnd(24)} ${p.position}  ${p.n === 0 ? "no ratings" : `${p.n} rating${p.n === 1 ? "" : "s"}`}`);
     day = addDaysYmd(day, 1);
   }
-  if (!lines.length) return console.log("No unscheduled players with pixel portraits left.");
+  if (!lines.length) return console.log("No unscheduled rated players with pixel portraits left (add --include-unrated to include players nobody has rated).");
 
   writeFileSync(
     "social/plan.txt",

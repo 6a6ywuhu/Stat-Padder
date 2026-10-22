@@ -76,7 +76,7 @@ export async function runDuePosts(opts: { dryRun: boolean; now?: Date }): Promis
     if (!lined) {
       const next = (await rankedCandidates("fewest"))[0];
       if (!next) {
-        results.push({ id: "-", player: "Daily player", action: "skipped", detail: "every eligible player has already been posted" });
+        results.push({ id: "-", player: "Daily player", action: "skipped", detail: "no eligible rated player left to post — waiting for more ratings" });
       } else {
         if (!opts.dryRun) {
           await prisma.socialPost.create({ data: { kind: "PLAYER", playerId: next.id, scheduledFor: now, status: "APPROVED" } });
