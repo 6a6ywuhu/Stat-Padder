@@ -7,7 +7,7 @@
  */
 import { Position } from "./db-enums";
 import { prisma } from "./prisma";
-import { getStandingsNow, getRoster, NhlRosterPlayer } from "./nhl-api";
+import { getStandingsNow, getRoster, NhlApiError, NhlRosterPlayer } from "./nhl-api";
 import { TEAM_COLORS, teamLogoUrl } from "@/data/team-colors";
 
 function mapPosition(code: string): Position {
@@ -55,13 +55,17 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+/** When the NHL rate-limits us (429) it says how long to wait; honour that, up to a cap. */
+const MAX_RATE_LIMIT_WAIT_MS = 25_000;
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
     } catch (err) {
       if (i === attempts - 1) throw err;
-      await sleep(1500 * (i + 1));
+      const told = err instanceof NhlApiError ? err.retryAfterMs : undefined;
+      await sleep(told ? Math.min(told + 1000, MAX_RATE_LIMIT_WAIT_MS) : 1500 * (i + 1));
     }
   }
   throw new Error("unreachable");

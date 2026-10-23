@@ -9,6 +9,13 @@
 const WEB_API = "https://api-web.nhle.com/v1";
 const STATS_API = "https://api.nhle.com/stats/rest/en";
 
+/** A failed NHL API call; carries the HTTP status and, on a 429, how long the NHL says to wait. */
+export class NhlApiError extends Error {
+  constructor(message: string, readonly status: number, readonly retryAfterMs?: number) {
+    super(message);
+  }
+}
+
 async function getJson<T>(url: string, revalidateSeconds?: number): Promise<T> {
   const res = await fetch(url, {
     ...(revalidateSeconds !== undefined
@@ -16,7 +23,12 @@ async function getJson<T>(url: string, revalidateSeconds?: number): Promise<T> {
       : {}),
   });
   if (!res.ok) {
-    throw new Error(`NHL API request failed (${res.status}): ${url}`);
+    const retryAfter = Number(res.headers.get("retry-after"));
+    throw new NhlApiError(
+      `NHL API request failed (${res.status}): ${url}`,
+      res.status,
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : undefined
+    );
   }
   return res.json() as Promise<T>;
 }
